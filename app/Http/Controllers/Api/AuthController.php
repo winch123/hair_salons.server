@@ -14,20 +14,20 @@ class AuthController extends Controller
 {
     function Register(Request $request) {
       dump($request->all());
-      
+
       $validation = Validator::make($request->all(), [
 	    'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:6', 
+            'password' => ['required', 'string', 'min:6',
 		'confirmed'
 	    ],
       ], ['password' => 'эти пароли не совпадают.']);
-      
+
       if ($validation->fails()) {
 	  return $validation->errors()->toJson();
       }
-      
-      
+
+
       $user = User::create(array_merge(
             $request->only('name', 'email'),
             ['password' => bcrypt($request->password)],
@@ -41,14 +41,16 @@ class AuthController extends Controller
     function Login(Request $request) {
         $credentials = $request->only('email', 'password');
 
-        if (!Auth::attempt($credentials)) {
+        if (!Auth::guard('web')->attempt($credentials)) {
             return response()->json([
                 'message' => 'You cannot sign with those credentials',
                 'errors' => 'Unauthorised'
             ], 401);
         }
 
-        $token = Auth::user()->createToken(config('app.name'));
+        $token = Auth::guard('web')->user()->createToken(config('app.name'));
+        //$token = $request->user()->createToken(config('app.name'));
+
         $token->token->expires_at = $request->remember_me ? Carbon::now()->addMonth() : Carbon::now()->addDay();
 
         $token->token->save();
@@ -69,6 +71,9 @@ class AuthController extends Controller
     }
 
     function test() {
+	if (Auth::check()) {
+	  // user authenticate
+	}
         return $_GET + $_POST;
     }
 

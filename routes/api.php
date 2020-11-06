@@ -20,6 +20,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 
 Route::match(['get','post'], '/register', [App\Http\Controllers\Api\AuthController::class, 'Register']);
 Route::match(['get','post'], '/login', [App\Http\Controllers\Api\AuthController::class, 'Login']);
+Route::match(['get','post'], '/logout', [App\Http\Controllers\Api\AuthController::class, 'Logout']);
 Route::match(['get','post'], '/test', [App\Http\Controllers\Api\AuthController::class, 'test'])
     ->middleware('auth:api');
 
