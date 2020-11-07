@@ -71,10 +71,14 @@ class AuthController extends Controller
     }
 
     function test() {
-	if (Auth::check()) {
-	  // user authenticate
-	}
-        return $_GET + $_POST;
+        if (Auth::check()) {
+            // user authenticate
+        }
+
+        $res = query("SELECT * FROM persons WHERE id<:id", ['id'=>4]);
+        return $res;
+
+        return ['aaa' => 111] + $_GET + $_POST;
     }
 
 }
