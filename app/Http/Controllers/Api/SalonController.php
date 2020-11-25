@@ -38,7 +38,7 @@ class SalonController extends Controller
         $persons = DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get();
 	$user = Auth::user();
 
-        return compact('workshifts', 'persons');
+        return compact('workshifts', 'persons', 'user');
     }
 
     function ScheduleGet() {
@@ -90,54 +90,22 @@ class SalonController extends Controller
         ];
     }
 
-    function GetSalonServicesList() {
-        $cats = query('
-            SELECT id, name FROM services WHERE parent_service IS NULL');
-        $cats = _gField($cats, 'id');
-
-        $sl = query('
-            SELECT ms.service_id, ms.price_default, ms.duration_default, s.parent_service, s.name
-            FROM masters_services ms
-            JOIN services s ON s.id=ms.service_id
-            WHERE ms.salon_id=:salon_id AND ms.person_id is null
-                    ', ['salon_id'=>$_GET['salonId']]);
-        $sl = _gField($sl, 'service_id');
-        //var_dump($sl); exit;
-
-        $masters = query('
-            SELECT ms.person_id, ms.service_id, p.name
-            FROM masters_services ms
-            JOIN persons p ON p.id=ms.person_id
-            WHERE ms.salon_id=:salon_id AND ms.person_id is not null
-                    ', ['salon_id'=>$_GET['salonId']]);
-        foreach ($masters as &$m) {
-            $sl[$m->service_id]['masters'][$m->person_id] = &$m;
-            unset($m->service_id);
-            unset($m->person_id);
-        }
-        foreach ($sl as $k=>$s) {
-            $cats[$s['parent_service']]['services'][$k] = $s;
-        }
-
-        return $cats;
-    }
-
     function GetAllServicesDir() {
-        /*
-        $cats = Yii::$app->db->createCommand('
+
+        $cats = query('
             SELECT s.id,s.name
             FROM services s
-            WHERE s.parent_service IS NULL')->queryAll();
+            WHERE s.parent_service IS NULL');
 
-        $cats = _gField($cats, 'id');
-        */
+        $cats = _gField($cats, 'id', false);
+
 
         $servs = query('
-            SELECT s.id, s.name,cats.name category_name
+            SELECT s.id, s.name, cats.id category_id, cats.name category_name
             FROM services s
             JOIN services cats ON s.parent_service=cats.id');
         //dump($servs);
-        $servs = _gField($servs, 'id');
+        $servs = _gField($servs, 'id', false);
 
         /*
         foreach($servs as $serv) {
@@ -147,7 +115,120 @@ class SalonController extends Controller
         }
         */
 
-        return $servs;
+        return compact('servs', 'cats');
 
+    }
+
+    private function _GetSalonServicesList(int $catId=null): array
+    {
+      /*
+        $sl = query('
+            SELECT ms.service_id, ms.price_default, ms.duration_default, s.parent_service, s.name
+            FROM masters_services ms
+            JOIN services s ON s.id=ms.service_id
+            WHERE ms.salon_id=:salon_id AND ms.person_id is null', ['salon_id'=>$_GET['salonId']]);
+            */
+
+        $sl = DB::connection('mysql2')->table('masters_services AS ms');
+	$sl->select('ms.service_id', 'ms.price_default', 'ms.duration_default', 's.parent_service', 's.name')
+	    ->join('services AS s', 's.id', '=', 'ms.service_id')
+	    ->where('ms.salon_id','=', (int) $_GET['salonId'])
+	    ->whereNull('ms.person_id')
+	    ;
+	if ($catId) {
+	  $sl->where('s.parent_service', '=', $catId);
+	}
+	//var_dump($sl->toSql());
+	//$sl->dd();
+
+        $sl = _gField($sl->get(), 'service_id');
+        //dump($sl);
+        //dump( array_unique(array_column($sl, 'parent_service')) ); exit;
+
+	$cats = DB::connection('mysql2')
+	    ->table('services')
+	    ->select('id','name')
+	    ->whereIn('id', array_unique(array_column($sl, 'parent_service')));
+        $cats = _gField($cats->get(), 'id');
+
+        $masters = query('
+            SELECT ms.person_id, ms.service_id, p.name
+            FROM masters_services ms
+            JOIN persons p ON p.id=ms.person_id
+            WHERE ms.salon_id=:salon_id AND ms.person_id is not null
+                    ', ['salon_id'=>$_GET['salonId']]);
+        foreach ($masters as &$m) {
+	  if (isset($sl[$m->service_id])) {
+            $sl[$m->service_id]['masters'][$m->person_id] = &$m;
+            unset($m->service_id);
+            unset($m->person_id);
+	  }
+        }
+
+        //dump($sl);
+        foreach ($sl as $k=>$s) {
+	  //var_dump($s); echo '---';
+            $cats[$s['parent_service']]['services'][$k] = $s;
+        }
+
+        return $cats;
+    }
+
+    function GetSalonServicesList() {
+      return $this->_GetSalonServicesList();
+    }
+
+    function SaveSalonService() {
+	$p = (object) $_GET;
+        // проверка прав: $user.person_id isAdmin in $_GET.salon_id ?
+	$this->authorize('master-of-salon', [$p->salonId, true]);
+
+        // валидация
+
+        if (empty($p->serviceId)) {
+	  $catId = $p->catId;
+	  // проверить корректнось catId
+
+	  $serviceId = DB::connection('mysql2')->table('services')->insertGetId([
+	      'parent_service' => $catId,
+	      'name' => $p->serviceName,
+	      'adding_salon' => $p->salonId,
+	   ]);
+        }
+        else {
+	  $s = query('SELECT id, parent_service, name
+	      FROM services
+	      WHERE id=? AND parent_service IS NOT NULL AND (adding_salon IS NULL OR adding_salon=?)', [$p->serviceId, $p->salonId]);
+	  if (empty($s)) {
+	    // кинуть exception
+	  }
+	  //dump((array) $s[0]);
+	  list('id' => $serviceId, 'parent_service' => $catId, 'name' => $serviceName) = (array)$s[0];
+	}
+	//return [$serviceId, $catId, $serviceName];
+
+        $isExistsMS = query("select id
+	    from masters_services
+	    where person_id is null and salon_id=? and service_id=?", [$p->salonId, $p->serviceId]);
+        if (!$isExistsMS) {
+	  DB::connection('mysql2')->table('masters_services')->insert([
+	    'service_id' => $serviceId,
+	    'salon_id' => $p->salonId,
+	  ]);
+        }
+
+        return $this->_GetSalonServicesList($catId);
+
+
+	///////////////////////
+        // update masters_services set price_default,duration_default
+        //     where person_id is null and salon_id=? and service_id=?
+
+        foreach($_GET['addMasters'] as $master_id) {
+            // replase masters_services (person_id, service_id, salon_id, price_default,duration_default) vlalues ($master_id....)
+        }
+        foreach($_GET['deleteMasters'] as $master_id) {
+            // delete from masters_services where person_id=$master_id and salon_id=? and service_id=?
+        }
     }
 }

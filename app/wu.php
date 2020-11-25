@@ -14,14 +14,15 @@ function query($sql, $params=[]) {
     }
 }
 
-function _gField(array $db_array, $field_name, $unset_original=true){
+function _gField(Iterable $db_array, string $field_name, bool $unset_original=true): array
+{
     $res = array();
-    foreach ($db_array as $row){
+    foreach ($db_array as $row) {
       if (!isset($row->$field_name)) {
-        throw new ApiException("_GatherField: поле $field_name не существует");
+        throw new Exception("_GatherField: поле $field_name не существует");
       }
       $k = $row->$field_name;
-      if ($unset_original){
+      if ($unset_original) {
         unset($row->$field_name);
         //var_dump($row);
       }
@@ -37,4 +38,21 @@ function _gField(array $db_array, $field_name, $unset_original=true){
 function timeToMinutes($time_str) {
     list($h, $m) = explode(':', $time_str);
     return (int)$h * 60 + (int)$m;
+}
+
+function mylog($d){
+    $fn = '/tmp/test1';
+    $deb = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+
+    if(is_array($d) || is_object($d)) {
+	    $cont = print_r($d, true) . PHP_EOL;
+    }
+    else {
+	    $cont = $d.PHP_EOL;
+    }
+
+    $str = date("d.m.Y H:i:s \n");
+    // $str .= $deb[1]['file'] .', '. $deb[1]['line'] .PHP_EOL;
+    $str .= $deb[0]['file'] .', '. $deb[0]['line'] .PHP_EOL.  $cont;
+    file_put_contents($fn, $str, FILE_APPEND);
 }
