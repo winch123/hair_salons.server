@@ -75,8 +75,16 @@ class AuthController extends Controller
             // user authenticate
         }
 
-        $res = query("SELECT * FROM persons WHERE id<:id", ['id'=>4]);
-        return $res;
+        /*
+        $p = \App\Models\Person::create([
+            'user_id' => 223,
+            'name' => 'new person',
+        ]);
+        */
+        return Auth::guard('api')->user();
+
+        //$res = query("SELECT * FROM persons WHERE id<:id", ['id'=>4]);
+        //return $res;
 
         return ['aaa' => 111] + $_GET + $_POST;
     }

@@ -5,14 +5,22 @@ namespace  App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 // use Illuminate\Http\Request;
 use DB;
+use Illuminate\Support\Facades\Auth;
+use Gate;
 
 class SalonController extends Controller
 {
     function ActualWorkshiftsGet() {
+        $salonId = $_GET['salonId'];
+
+        //if (! Gate::allows('is-master-of-salon', $salonId)) {
+        //    return ['no access'];
+        //}
+        $this->authorize('master-of-salon', [$salonId, false]);
 
         $wss = query('SELECT  id shift_id, master_id, date_begin, time_begin, duration_minutes
             FROM workshifts
-            WHERE salon_id=:salon_id', ['salon_id'=>2]);
+            WHERE salon_id=:salon_id', ['salon_id'=>$salonId]);
         $workshifts = $masters_ids = [];
         foreach ($wss as $ws) {
             extract((array)$ws);
@@ -28,6 +36,7 @@ class SalonController extends Controller
 
         //$persons = query("SELECT id,name FROM persons WHERE id in (?)", [$masters_ids]);
         $persons = DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get();
+	$user = Auth::user();
 
         return compact('workshifts', 'persons');
     }
