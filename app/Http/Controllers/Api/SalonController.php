@@ -12,30 +12,33 @@ class SalonController extends Controller
 {
     function ActualWorkshiftsGet() {
         $salonId = $_GET['salonId'];
+	setlocale(LC_ALL, 'ru_RU', 'ru_RU.UTF-8', 'ru', 'russian');
 
         //if (! Gate::allows('is-master-of-salon', $salonId)) {
         //    return ['no access'];
         //}
         $this->authorize('master-of-salon', [$salonId, false]);
 
-        $wss = query('SELECT  id shift_id, master_id, date_begin, time_begin, duration_minutes
-            FROM workshifts
-            WHERE salon_id=:salon_id', ['salon_id'=>$salonId]);
+        $wss = query('SELECT ws.id AS shift_id, ws.master_id, ws.date_begin, ws.time_begin, ws.duration_minutes,
+		SUM(ms.duration_minutes) AS total_duration, COUNT(ms.id) total_services_count
+            FROM workshifts AS ws
+            LEFT JOIN masters_schedule AS ms ON ws.id=ms.shift_id
+            WHERE ws.salon_id=:salon_id
+            GROUP BY ws.id', ['salon_id'=>$salonId]);
         $workshifts = $masters_ids = [];
         foreach ($wss as $ws) {
             extract((array)$ws);
             unset($ws->date_begin);
             unset($ws->master_id);
-            $ws->text = "$ws->time_begin / $ws->duration_minutes";
-
+            $ws->text = strftime('%H:%M', strtotime($ws->time_begin)) . ' - ' . strftime('%H:%M', strtotime("+$ws->duration_minutes min", strtotime($ws->time_begin)));
+	    $ws->description = "$ws->total_duration мин, $ws->total_services_count услуги";
             $workshifts[$date_begin]['masters'][$master_id] = $ws;
-            //$workshifts[$date_begin]['masters'][$master_id] = $ws['text'];
-            $workshifts[$date_begin]['caption'] = 'день: ' . $date_begin;
+            $workshifts[$date_begin]['caption'] = strftime('%d %b - %a', strtotime($date_begin));
             $masters_ids[] = $master_id;
         }
 
         //$persons = query("SELECT id,name FROM persons WHERE id in (?)", [$masters_ids]);
-        $persons = DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get();
+        $persons = _gField(DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get(), 'id', false);
 	$user = Auth::user();
 
         return compact('workshifts', 'persons', 'user');
@@ -43,6 +46,7 @@ class SalonController extends Controller
 
     function ScheduleGet() {
         $ws = query('SELECT
+		master_id,
                 CAST(UNIX_TIMESTAMP(time_begin)/60 - UNIX_TIMESTAMP(CURDATE())/60 AS UNSIGNED) AS BeginShiftMinutes,
                 duration_minutes AS DurationShiftMinutes
             FROM workshifts
