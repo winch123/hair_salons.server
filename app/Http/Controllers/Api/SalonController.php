@@ -51,8 +51,7 @@ class SalonController extends Controller
         $schedule = query('SELECT
                 ms.id, ms.begin_minutes, ms.duration_minutes AS duration, ms.comment, ms.s_type, s.name AS text
             FROM masters_schedule ms
-            LEFT JOIN masters_services msr ON ms.master_service_id=msr.id
-            LEFT JOIN services s ON msr.service_id=s.id
+            LEFT JOIN services s ON ms.service_id=s.id
             WHERE ms.shift_id=:shift_id', ['shift_id'=>$_GET['shiftId']]);
 
         sleep(0.1);
@@ -73,7 +72,7 @@ class SalonController extends Controller
 
         $id = DB::connection('mysql2')->table('masters_schedule')->insertGetId([
             'shift_id' => $_GET['shiftId'],
-            'master_service_id' => $_GET['masterServiceId'],
+            'service_id' => $_GET['serviceId'],
             'begin_minutes' => $begin_minutes,
             'duration_minutes' => $duration_minutes,
             'comment' => $_GET['comment'],
@@ -84,7 +83,7 @@ class SalonController extends Controller
         return [
             'id' => $id,
             'redirect' => [
-                'url' => '/salon/schedule-get',
+                'url' => '/schedule-get',
                 'params' => ['shiftId' => $_GET['shiftId']],
             ],
         ];
@@ -119,24 +118,29 @@ class SalonController extends Controller
 
     }
 
-    private function _GetSalonServicesList(int $catId=null): array
+    private function _GetSalonServicesList(int $salonId, int $catId=null, int $masrerId=null): array
     {
       /*
         $sl = query('
             SELECT ms.service_id, ms.price_default, ms.duration_default, s.parent_service, s.name
             FROM masters_services ms
             JOIN services s ON s.id=ms.service_id
-            WHERE ms.salon_id=:salon_id AND ms.person_id is null', ['salon_id'=>$_GET['salonId']]);
+            WHERE ms.salon_id=:salon_id AND ms.person_id is null', ['salon_id'=>$salonId]);
             */
 
         $sl = DB::connection('mysql2')->table('masters_services AS ms');
 	$sl->select('ms.service_id', 'ms.price_default', 'ms.duration_default', 's.parent_service', 's.name')
 	    ->join('services AS s', 's.id', '=', 'ms.service_id')
-	    ->where('ms.salon_id','=', (int) $_GET['salonId'])
-	    ->whereNull('ms.person_id')
-	    ;
+	    ->where('ms.salon_id','=', $salonId)
+	    ->whereNull('ms.person_id');
+
 	if ($catId) {
 	  $sl->where('s.parent_service', '=', $catId);
+	}
+
+	if ($masrerId) {
+	  $sl->join('masters_services AS master', 'master.service_id', '=', 'ms.service_id')
+	    ->where('master.person_id', '=', $masrerId);
 	}
 	//var_dump($sl->toSql());
 	//$sl->dd();
@@ -156,7 +160,7 @@ class SalonController extends Controller
             FROM masters_services ms
             JOIN persons p ON p.id=ms.person_id
             WHERE ms.salon_id=:salon_id AND ms.person_id is not null
-                    ', ['salon_id'=>$_GET['salonId']]);
+                    ', ['salon_id'=>$salonId]);
         foreach ($masters as &$m) {
 	  if (isset($sl[$m->service_id])) {
             $sl[$m->service_id]['masters'][$m->person_id] = &$m;
@@ -174,8 +178,22 @@ class SalonController extends Controller
         return $cats;
     }
 
+    private function _AddMastersToService(int $salonId, int $serviceId, array $masters=[])
+    {
+      // Предполагается указание списка матеров, при этом  нужна проверка, что все указанные мастера действительно работают в этом салоне.
+      $masters = query("SELECT person_id FROM masters WHERE salon_id=?", [$salonId]);
+
+      foreach ($masters as $master) {
+	  DB::connection('mysql2')->table('masters_services')->insert([
+	    'service_id' => $serviceId,
+	    'salon_id' => $salonId,
+	    'person_id' => $master->person_id,
+	  ]);
+      }
+    }
+
     function GetSalonServicesList() {
-      return $this->_GetSalonServicesList();
+      return $this->_GetSalonServicesList((int) $_GET['salonId']);
     }
 
     function SaveSalonService() {
@@ -186,7 +204,7 @@ class SalonController extends Controller
         // валидация
 
         if (empty($p->serviceId)) {
-	  $catId = $p->catId;
+	  $catId = (int) $p->catId;
 	  // проверить корректнось catId
 
 	  $serviceId = DB::connection('mysql2')->table('services')->insertGetId([
@@ -209,15 +227,22 @@ class SalonController extends Controller
 
         $isExistsMS = query("select id
 	    from masters_services
-	    where person_id is null and salon_id=? and service_id=?", [$p->salonId, $p->serviceId]);
+	    where person_id is null and salon_id=? and service_id=?", [$p->salonId, $serviceId]);
         if (!$isExistsMS) {
 	  DB::connection('mysql2')->table('masters_services')->insert([
 	    'service_id' => $serviceId,
 	    'salon_id' => $p->salonId,
+	    'price_default' => 100,
+	    'duration_default' => 20,
 	  ]);
+	  $this->_AddMastersToService($p->salonId, $serviceId);
         }
 
-        return $this->_GetSalonServicesList($catId);
+        return [
+	    'serviceId' => $serviceId,
+	    'categoryId' => $catId,
+	    'servicesBaranch' => $this->_GetSalonServicesList((int) $p->salonId , $catId),
+	];
 
 
 	///////////////////////
