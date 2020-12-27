@@ -10,6 +10,9 @@ use Gate;
 
 class SalonController extends Controller
 {
+    /*
+     *	Возвращает существующие смены салона.
+     */
     function ActualWorkshiftsGet() {
         $salonId = $_GET['salonId'];
 	setlocale(LC_ALL, 'ru_RU', 'ru_RU.UTF-8', 'ru', 'russian');
@@ -20,7 +23,7 @@ class SalonController extends Controller
         $this->authorize('master-of-salon', [$salonId, false]);
 
         $wss = query('SELECT ws.id AS shift_id, ws.master_id, ws.date_begin, ws.time_begin, ws.duration_minutes,
-		SUM(ms.duration_minutes) AS total_duration, COUNT(ms.id) total_services_count
+		SUM(ms.duration_minutes) AS busy_duration, COUNT(ms.id) total_services_count
             FROM workshifts AS ws
             LEFT JOIN masters_schedule AS ms ON ws.id=ms.shift_id
             WHERE ws.salon_id=:salon_id
@@ -31,7 +34,7 @@ class SalonController extends Controller
             unset($ws->date_begin);
             unset($ws->master_id);
             $ws->text = strftime('%H:%M', strtotime($ws->time_begin)) . ' - ' . strftime('%H:%M', strtotime("+$ws->duration_minutes min", strtotime($ws->time_begin)));
-	    $ws->description = "$ws->total_duration мин, $ws->total_services_count услуги";
+	    $ws->description = 'услуг: ' . $ws->total_services_count . ', свободно:' . ($ws->duration_minutes - $ws->busy_duration) . ' мин';
             $workshifts[$date_begin]['masters'][$master_id] = $ws;
             $workshifts[$date_begin]['caption'] = strftime('%d %b - %a', strtotime($date_begin));
             $masters_ids[] = $master_id;
@@ -44,6 +47,28 @@ class SalonController extends Controller
         return compact('workshifts', 'persons', 'user');
     }
 
+    /*
+     * Создает смену мастера.
+     */
+    function CreateWorkshift() {
+      /// master_id,	date_begin, time_begin,	duration_minutes
+	$p = (object) $_REQUEST;
+	$this->authorize('master-of-salon', [$p->salonId, true]);
+
+	$id = DB::connection('mysql2')->table('workshifts')->insertGetId([
+	    'salon_id' => $p->salonId,
+	    'master_id' => $p->masterId,
+	    'date_begin' => $p->dateBegin,
+	    'time_begin' => $p->timeBegin,
+	    'duration_minutes' => timeToMinutes($p->timeEnd) - timeToMinutes($p->timeBegin),
+        ]);
+
+	return $_REQUEST;
+    }
+
+    /*
+     * Возвращает рассписание определенного мастера, в определенном салоне, на определенный день.
+     */
     function ScheduleGet() {
         $ws = query('SELECT
 		master_id,
@@ -69,6 +94,9 @@ class SalonController extends Controller
         ]];
     }
 
+    /*
+     *	Добавление услуги в рассписание мастера.
+     */
     function ScheduleAddService() {
         $workshift = query("SELECT time_begin,duration_minutes FROM workshifts WHERE id=?", [$_GET['shiftId']] );
         $begin_minutes = timeToMinutes($_GET['beginTime']) - timeToMinutes($workshift[0]->time_begin);
@@ -93,6 +121,9 @@ class SalonController extends Controller
         ];
     }
 
+    /*
+     *	Возвращает все известные системе услуги, для выбора нужной при создани новой услуги салона.
+     */
     function GetAllServicesDir() {
 
         $cats = query('
@@ -122,6 +153,9 @@ class SalonController extends Controller
 
     }
 
+    /*
+     * 	Возвращает услуги салона в виде иерахии, начиная с категорий.
+     */
     private function _GetSalonServicesList(int $salonId, int $catId=null, int $masrerId=null): array
     {
       /*
@@ -182,6 +216,9 @@ class SalonController extends Controller
         return $cats;
     }
 
+    /*
+     *
+     */
     private function _AddMastersToService(int $salonId, int $serviceId, array $masters=[])
     {
       // Предполагается указание списка матеров, при этом  нужна проверка, что все указанные мастера действительно работают в этом салоне.

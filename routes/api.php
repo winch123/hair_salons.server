@@ -25,6 +25,7 @@ Route::match(['get','post'], '/test', [App\Http\Controllers\Api\AuthController::
     //->middleware('auth:api');
 
 Route::match(['get','post'], '/actual-workshifts-get', 'App\Http\Controllers\Api\SalonController@ActualWorkshiftsGet');
+Route::match(['get','post'], '/create-workshift', 'App\Http\Controllers\Api\SalonController@CreateWorkshift');
 Route::match(['get','post'], '/schedule-get', 'App\Http\Controllers\Api\SalonController@ScheduleGet');
 Route::match(['get','post'], '/schedule-add-service', 'App\Http\Controllers\Api\SalonController@ScheduleAddService');
 Route::match(['get','post'], '/get-salon-services-list', 'App\Http\Controllers\Api\SalonController@GetSalonServicesList');
