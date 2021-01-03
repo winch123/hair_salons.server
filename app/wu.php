@@ -6,9 +6,13 @@ ini_set('display_errors', 1);
 //use DB;
 
 function query($sql, $params=[]) {
+    $connection = DB::connection('mysql2');
     switch (strtoupper(substr(trim($sql), 0, 6))) {
         case 'SELECT':
-            return DB::connection('mysql2')->select($sql, $params);
+            return $connection->select($sql, $params);
+	case 'INSERT':
+	    $connection->insert($sql, $params);
+	    return $connection->getPdo()->lastInsertId();
         default:
             throw new ApiException("не известный тип запроса");
     }

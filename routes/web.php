@@ -18,4 +18,7 @@ Route::get('/', function () {
 });
 
 // Route::get('/test', 'App\Http\Controllers\Controller@test');
-Route::get('/test', [App\Http\Controllers\Controller::class, 'test']);
+//Route::get('/test', [App\Http\Controllers\Controller::class, 'test']);
+
+Route::get('/test', 'App\Http\Controllers\SalonsForVisitors@test');
+Route::get('/send-request-to-salon', 'App\Http\Controllers\SalonsForVisitors@sendRequestToSalon');
