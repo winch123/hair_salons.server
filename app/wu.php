@@ -7,6 +7,8 @@ ini_set('display_errors', 1);
 
 function query($sql, $params=[]) {
     $connection = DB::connection('mysql2');
+    list($sql, $params) = replaceParams($sql, $params);
+
     switch (strtoupper(substr(trim($sql), 0, 6))) {
         case 'SELECT':
             return $connection->select($sql, $params);
@@ -16,6 +18,21 @@ function query($sql, $params=[]) {
         default:
             throw new ApiException("не известный тип запроса");
     }
+}
+
+function replaceParams($sql, $params) {
+	$i = 0;
+	$p = array();
+	foreach ($params as $k=>$v) {
+	if (is_array($v)){
+		$sql = str_replace('ph'.$i++, implode(',', array_fill(0, count($v), '?')), $sql);
+		foreach ($v as $v0)
+		$p[] = $v0;
+	}
+	else
+		$p[$k] = $v;
+	}
+	return array($sql, $p);
 }
 
 function _gField(Iterable $db_array, string $field_name, bool $unset_original=true): array

@@ -32,6 +32,8 @@ Route::match(['get','post'], '/get-salon-services-list', 'App\Http\Controllers\A
 Route::match(['get','post'], '/get-all-services-dir', 'App\Http\Controllers\Api\SalonController@GetAllServicesDir');
 Route::match(['get','post'], '/save-salon-service', 'App\Http\Controllers\Api\SalonController@SaveSalonService');
 
+Route::match(['get','post'], '/get_my_salon_services_active_requests', [App\Http\Controllers\Api\SalonController::class, 'GetMySalonServicesActiveRequests']);
+Route::match(['get','post'], '/set_my_response', [App\Http\Controllers\Api\SalonController::class, 'SetMyResponse']);
 
 
 Route::group(['namespace' => 'Api'], function () {
