@@ -104,56 +104,41 @@ class SalonController extends Controller
     /*
      *	Добавление услуги в рассписание мастера.
      */
-    private function _ScheduleAddService($shiftId, $serviceId, $beginTime, $endTime=null, $comment=null) {
-	if ($endTime) { // если время окончания не указано, предпологается его определение по masters_services -> duration_default
-	    $duration_minutes = timeToMinutes($endTime) - timeToMinutes($beginTime);
-	}
-	else {
-	    $s = query("SELECT COALESCE(sum(B), sum(A)) AS duration_default_res
-			FROM
-			  (SELECT service_id,
-			      case when person_id IS NULL then duration_default end as A,
-			      case when person_id IS NOT NULL then duration_default end as B
-			   FROM masters_services
-			   WHERE (person_id IS NULL OR person_id=?) AND service_id=?) as t
-			GROUP BY service_id", [$serviceId, ]);
-	    $duration_minutes = $s[0]['duration_default_res'];
-	}
-        $workshift = query("SELECT time_begin,duration_minutes FROM workshifts WHERE id=?", [$shiftId] );
-        $begin_minutes = timeToMinutes($beginTime) - timeToMinutes($workshift[0]->time_begin);
-        $end_minutes = $begin_minutes + $duration_minutes;
+    private function _ScheduleAddService($salonId, $shiftId, $servId, $servType, $beginTime, $endTime=null, $comment=null) {
 
-	// проверка накладки занятого временного интервала
-	$prev = current(query("SELECT id, begin_minutes, begin_minutes + duration_minutes AS end_minutes
-		  FROM masters_schedule
-		  WHERE shift_id=? AND begin_minutes < ?
-		  ORDER BY -begin_minutes LIMIT 1 ", [$shiftId, $end_minutes]));
-	if ($prev && $prev->end_minutes > $begin_minutes ) {
-	    throw new \Exception("conflict witch: $prev->id");
-	}
+		$ws = current(query("SELECT date_begin, time_begin, duration_minutes, master_id FROM workshifts WHERE id=?", [$shiftId]));
 
-	$next = current(query("SELECT id, begin_minutes, begin_minutes + duration_minutes AS end_minutes
-		FROM masters_schedule
-		WHERE shift_id=? AND begin_minutes + duration_minutes > ?
-		ORDER BY begin_minutes LIMIT 1 ", [$shiftId, $begin_minutes]));
-	if ($next && $next->begin_minutes < $end_minutes ) {
-	    throw new \Exception("conflict witch: $next->id");
-	}
+		if ($endTime) { // если время окончания не указано, предпологается его определение по masters_services -> duration_default
+			$duration_minutes = timeToMinutes($endTime) - timeToMinutes($beginTime);
+		}
+		else {
+			$duration_minutes = $this->WorkshiftsRepository->getServiceDurationByMaster($servId, $ws->master_id);
+		}
 
-        $id = DB::connection('mysql2')->table('masters_schedule')->insertGetId([
-            'shift_id' => $shiftId,
-            'service_id' => $serviceId,
-            'begin_minutes' => $begin_minutes,
-            'duration_minutes' => $duration_minutes,
-            'comment' => $comment,
-        ]);
+		$begin_minutes = timeToMinutes($beginTime) - timeToMinutes($ws->time_begin);
+		$end_minutes = $begin_minutes + $duration_minutes;
 
-        return $id;
+		$workshifts = $this->WorkshiftsRepository->loadShifts($salonId, null, $shiftId);
+		$unix_minutes = strtotime($ws->date_begin . ' ' . $ws->time_begin) / 60 + $begin_minutes;
+		// проверка накладки занятого временного интервала
+		//var_dump([ $workshifts[$shiftId]['schedule'], $unix_minutes, $duration_minutes ]);
+		if ($this->WorkshiftsRepository->testToShove($workshifts[$shiftId]['schedule'], $unix_minutes, $duration_minutes)) {
+
+			$id = DB::connection('mysql2')->table('masters_schedule')->insertGetId([
+				'shift_id' => $shiftId,
+				'service_id' => $servId,
+				'begin_minutes' => $begin_minutes,
+				'duration_minutes' => $duration_minutes,
+				'comment' => $comment,
+				's_type' => $servType,
+			]);
+			return $id;
+        }
     }
 
     function ScheduleAddService() {
         return [
-            'id' => $this->_ScheduleAddService($_GET['shiftId'], $_GET['serviceId'], $_GET['beginTime'], $_GET['endTime'], $_GET['comment']),
+            'id' => $this->_ScheduleAddService($_GET['salonId'], $_GET['shiftId'], $_GET['serviceId'], 'own', $_GET['beginTime'], $_GET['endTime'], $_GET['comment']),
             'redirect' => [
                 'url' => '/schedule-get',
                 'params' => ['shiftId' => $_GET['shiftId']],
@@ -349,16 +334,18 @@ class SalonController extends Controller
       $p = (object) $_REQUEST;
       $this->authorize('master-of-salon', [$p->salonId, true]);
 
-      $request = current(query("SELECT id, service_id, date(desired_time), time(desired_time)
-	    FROM requests_to_salons
-	    WHERE status='proposed' AND id=? AND salon_id=? ", [$p->requestId, $p->salonId]));
+		$request = current(query("SELECT id, service_id, date(desired_time), time(desired_time) t
+			FROM requests_to_salons
+			WHERE status='proposed' AND id=? AND salon_id=? ", [$p->serviceRequestId, $p->salonId]));
 
-      if ($p->answer == '') {
+		$newStatus = isset($p->shiftId) ? (
+			$this->_ScheduleAddService($p->salonId, $p->shiftId, $request->service_id, 'external', $request->t) ? 'accepted' : 'conflicting'
+		) : 'rejected';
 
-	  //  $this->_ScheduleAddService($shiftId, $serviceId, $beginTime, $endTime, $comment)
-      }
+		query("UPDATE requests_to_salons SET status=? WHERE id=?", [$newStatus, $request->id]);
+// 		// TODO: Предпологается связь между запросом услуги и созданого рассписания. Ворос кто на кого будет ссылаться.
 
-      query("UPDATE requests_to_salons SET status='accepted' WHERE id=?", [$request->id]);
+		return ['message' => $newStatus];
     }
 
 }

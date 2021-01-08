@@ -15,8 +15,10 @@ function query($sql, $params=[]) {
 	case 'INSERT':
 	    $connection->insert($sql, $params);
 	    return $connection->getPdo()->lastInsertId();
+	case 'UPDATE':
+	    return $connection->update($sql, $params);
         default:
-            throw new ApiException("не известный тип запроса");
+            throw new UnexpectedValueException("не известный тип запроса:\n $sql");
     }
 }
 
