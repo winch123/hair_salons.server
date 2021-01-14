@@ -140,26 +140,11 @@ class WorkshiftsRepository
 		return $ret;
 	}
 
-	function loadShifts($salonId, $interval, $shiftId=null) {
-		// TODO: Возможно лучьше будет загружать только смены мастеров, которые реально могут выполнять требуюмую услугу.
-		$sql = "SELECT id, master_id, ADDTIME(date_begin, time_begin) shift_begin, duration_minutes
-			FROM workshifts
-			WHERE salon_id=? ";
-		$params = [$salonId];
-
-		if ($shiftId) {
-			$sql .= " AND id=?";
-			$params[] = $shiftId;
-		}
-		else {
-			$sql .= " AND ADDTIME(date_begin, time_begin) < ?
-				AND TIMESTAMPADD(MINUTE, duration_minutes, ADDTIME(date_begin, time_begin)) > ? ";
-			$params[] = $interval->end;
-			$params[] = $interval->start;
-		}
-
-		$workshifts = _gField(query($sql, $params), 'id');
+	private function loadShifts($workshifts) {
+		//var_dump($workshifts);
 		foreach ($workshifts as &$ws) {
+			$ws['from'] = strtotime($ws['shift_begin'])/60;
+			$ws['to'] = $ws['from'] + $ws['duration_minutes'];
 			$ws['schedule'] = [];
 		}
 
@@ -177,6 +162,26 @@ class WorkshiftsRepository
 			}
 		}
 		return $workshifts;
+	}
+
+	function loadShiftById($salonId, $shiftId) {
+		$sql = "SELECT id, master_id, ADDTIME(date_begin, time_begin) shift_begin, duration_minutes
+			FROM workshifts
+			WHERE salon_id=? AND id=?";
+
+		return $this->loadShifts(_gField(query($sql, [$salonId, $shiftId]), 'id'))[$shiftId];
+	}
+
+	function loadShiftsByIntervalAndService($salonId, $interval, $serviceId) {
+		//var_dump([$salonId, $interval, $serviceId]);
+		$sql = "SELECT id, master_id, ADDTIME(date_begin, time_begin) shift_begin, duration_minutes
+			FROM workshifts
+			WHERE salon_id=?
+				AND ADDTIME(date_begin, time_begin) >= ?
+				AND TIMESTAMPADD(MINUTE, duration_minutes, ADDTIME(date_begin, time_begin)) <= ?";
+		$params = [$salonId, $interval->start, $interval->end];
+
+		return $this->loadShifts(_gField(query($sql, $params), 'id', false));
 	}
 
 }

@@ -118,11 +118,10 @@ class SalonController extends Controller
 		$begin_minutes = timeToMinutes($beginTime) - timeToMinutes($ws->time_begin);
 		$end_minutes = $begin_minutes + $duration_minutes;
 
-		$workshifts = $this->WorkshiftsRepository->loadShifts($salonId, null, $shiftId);
+		$workshift = $this->WorkshiftsRepository->loadShiftById($salonId, $shiftId);
 		$unix_minutes = strtotime($ws->date_begin . ' ' . $ws->time_begin) / 60 + $begin_minutes;
 		// проверка накладки занятого временного интервала
-		//var_dump([ $workshifts[$shiftId]['schedule'], $unix_minutes, $duration_minutes ]);
-		if ($this->WorkshiftsRepository->testToShove($workshifts[$shiftId]['schedule'], $unix_minutes, $duration_minutes)) {
+		if ($this->WorkshiftsRepository->testToShove($workshift['schedule'], $unix_minutes, $duration_minutes)) {
 
 			$id = DB::connection('mysql2')->table('masters_schedule')->insertGetId([
 				'shift_id' => $shiftId,

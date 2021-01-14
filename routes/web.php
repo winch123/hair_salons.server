@@ -22,3 +22,4 @@ Route::get('/', function () {
 
 Route::get('/test', 'App\Http\Controllers\SalonsForVisitors@test');
 Route::get('/send-request-to-salon', 'App\Http\Controllers\SalonsForVisitors@sendRequestToSalon');
+Route::get('/get-unoccupied-schedule', 'App\Http\Controllers\SalonsForVisitors@getUnoccupiedSchedule');
