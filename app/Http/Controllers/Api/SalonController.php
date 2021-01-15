@@ -34,7 +34,8 @@ class SalonController extends Controller
             FROM workshifts AS ws
             LEFT JOIN masters_schedule AS ms ON ws.id=ms.shift_id
             WHERE ws.salon_id=:salon_id
-            GROUP BY ws.id', ['salon_id'=>$salonId]);
+            GROUP BY ws.id
+            ORDER BY ws.date_begin', ['salon_id'=>$salonId]);
         $workshifts = $masters_ids = [];
         foreach ($wss as $ws) {
             extract((array)$ws);
@@ -330,21 +331,35 @@ class SalonController extends Controller
     }
 
     function SetMyResponse() {
-      $p = (object) $_REQUEST;
-      $this->authorize('master-of-salon', [$p->salonId, true]);
+		$p = (object) $_REQUEST;
+		$this->authorize('master-of-salon', [$p->salonId, true]);
 
-		$request = current(query("SELECT id, service_id, date(desired_time), time(desired_time) t
-			FROM requests_to_salons
-			WHERE status='proposed' AND id=? AND salon_id=? ", [$p->serviceRequestId, $p->salonId]));
+		$request = current(query("SELECT rs.id, rs.service_id, date(rs.desired_time), time(rs.desired_time) t, rs.status, s.name service_name
+			FROM requests_to_salons rs
+			JOIN services s ON rs.service_id=s.id
+			WHERE rs.id=? AND rs.salon_id=? ", [$p->serviceRequestId, $p->salonId]));
+
+		if ($request->status != 'proposed' ) {
+			throw new \RangeException("Запрос: $p->serviceRequestId, в салон: $p->salonId - не актуален");
+		}
 
 		$newStatus = isset($p->shiftId) ? (
 			$this->_ScheduleAddService($p->salonId, $p->shiftId, $request->service_id, 'external', $request->t) ? 'accepted' : 'conflicting'
 		) : 'rejected';
 
 		query("UPDATE requests_to_salons SET status=? WHERE id=?", [$newStatus, $request->id]);
-// 		// TODO: Предпологается связь между запросом услуги и созданого рассписания. Ворос кто на кого будет ссылаться.
+		// TODO: Предпологается связь между запросом услуги и созданого рассписания. Ворос, кто на кого будет ссылаться в БД.
+		$results = [
+			'accepted' => ['icon' => 'ok', 'text' => "Услуга $request->service_name была добавлена в рассписание."],
+			'conflicting' => ['icon' => 'warning', 'text' => 'Время уже занято'],
+			'rejected' => ['icon' => 'info', 'text' =>'Отказ принят'],
+		];
 
-		return ['message' => $newStatus];
+		return ['message' => [
+				'title' => 'Что-то там произошло.',
+				'text' => $results[$newStatus]['text'],
+				'iconType' => $results[$newStatus]['icon'],
+			]];
     }
 
 }

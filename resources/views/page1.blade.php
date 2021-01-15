@@ -50,7 +50,7 @@
 			},
 		});
 		$('#tik').text('отправляем запрос...');
-		let tiks = 20;
+		let tiks = 60;
 		$('#result').hide();
         let intervalId = setInterval(function() {
             $('#tik').text(tiks);

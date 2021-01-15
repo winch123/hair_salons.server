@@ -7,15 +7,16 @@ class WorkshiftsRepository
 {
 
     function GetMySalonServicesActiveRequests($salonId) {
-		$res = query("SELECT s.name service_name, ms.price_default, ms.duration_default, rs.desired_time, rs.created_at, rs.id,
-							rs.service_id, SECOND(rs.created_at)*10 AS limit_seconds
+		$res = query("SELECT s.name service_name, ms.price_default, ms.duration_default, rs.desired_time, rs.id, rs.service_id,
+							60 - (now()-rs.created_at) AS limit_seconds
 			FROM requests_to_salons rs
 			JOIN services s ON s.id=rs.service_id
 			JOIN masters_services ms ON ms.service_id=rs.service_id AND ms.person_id IS NULL AND ms.salon_id=?
 			WHERE rs.status='proposed' AND rs.salon_id=? ", [$salonId, $salonId]);
 
 		foreach($res as &$request) {
-			$this->workshifts = $this->loadShifts($salonId, (object)['start'=>$request->desired_time, 'end'=>$request->desired_time]);
+			$interval = (object)['start'=>$request->desired_time, 'end'=>$request->desired_time];
+			$this->workshifts = $this->loadShiftsByIntervalAndService($salonId, $interval, $request->service_id);
 			$request->vacancyInShifts = $this->findPlaceForIntervalInShifts($request->desired_time, $request->service_id);
 		}
 
@@ -122,9 +123,13 @@ class WorkshiftsRepository
 		return 20;
 	}
 
+	/*
+	 *
+	 * Подбираем смены, которые могут выполнить эту услугу в заданное время.
+	 */
 	function findPlaceForIntervalInShifts($desired_time, $serviceId) {
-		//$interval->start = strtotime($interval->start) / 60;
-		//$interval->end = strtotime($interval->end) / 60;
+		//var_dump(compact('desired_time', 'serviceId'));
+
 		$ret = [];
 		foreach($this->workshifts as $shiftId => $shift) {
 
@@ -172,14 +177,19 @@ class WorkshiftsRepository
 		return $this->loadShifts(_gField(query($sql, [$salonId, $shiftId]), 'id'))[$shiftId];
 	}
 
+	/*
+	*
+	* Загружаем смены, которые ПЕРЕСЕКАЮТСЯ с заданным временным промежутком и могут выполнить нужную услугу.
+	*/
 	function loadShiftsByIntervalAndService($salonId, $interval, $serviceId) {
-		//var_dump([$salonId, $interval, $serviceId]);
-		$sql = "SELECT id, master_id, ADDTIME(date_begin, time_begin) shift_begin, duration_minutes
-			FROM workshifts
-			WHERE salon_id=?
-				AND ADDTIME(date_begin, time_begin) >= ?
-				AND TIMESTAMPADD(MINUTE, duration_minutes, ADDTIME(date_begin, time_begin)) <= ?";
-		$params = [$salonId, $interval->start, $interval->end];
+		$sql = "SELECT ws.id, ws.master_id, ADDTIME(ws.date_begin, ws.time_begin) shift_begin, ws.duration_minutes
+			FROM workshifts ws
+			JOIN masters_services ms ON ms.salon_id=ws.salon_id AND ms.person_id=ws.master_id
+			WHERE ws.salon_id=?
+				AND ms.service_id=?
+				AND ADDTIME(ws.date_begin, ws.time_begin) < ?
+				AND TIMESTAMPADD(MINUTE, ws.duration_minutes, ADDTIME(ws.date_begin, ws.time_begin)) > ?";
+		$params = [$salonId, $serviceId, $interval->end, $interval->start];
 
 		return $this->loadShifts(_gField(query($sql, $params), 'id', false));
 	}

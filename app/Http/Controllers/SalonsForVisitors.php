@@ -27,7 +27,7 @@ class SalonsForVisitors extends Controller
 		$id = query("INSERT INTO requests_to_salons (salon_id, service_id, desired_time)
 				VALUES (?,?,?)", [$p->salon_id, $p->service_id, $p->desired_time]);
 
-		for ($i=0; $i<10; $i++) {
+		for ($i=0; $i<60; $i++) {
 			sleep(1);
 			$r = current(query("SELECT status FROM requests_to_salons WHERE id=?", [$id]));
 			if ($r->status != 'proposed') {
