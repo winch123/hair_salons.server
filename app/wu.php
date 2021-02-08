@@ -6,7 +6,9 @@ ini_set('display_errors', 1);
 //use DB;
 
 function query($sql, $params=[]) {
-    $connection = DB::connection('mysql2');
+    //$connection = DB::connection('mysql2');
+    $connection = DB::connection('mysql3');
+
     list($sql, $params) = replaceParams($sql, $params);
 
     switch (strtoupper(substr(trim($sql), 0, 6))) {
@@ -64,7 +66,8 @@ function timeToMinutes($time_str) {
 }
 
 function mylog($d){
-    $fn = '/tmp/test1';
+    //$fn = '/tmp/test1';
+    $fn = '/home/winch/1/test1';
     $deb = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
 
     if(is_array($d) || is_object($d)) {

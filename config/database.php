@@ -75,6 +75,18 @@ return [
             'strict'    => true,
         ],
 
+        'mysql3' => [
+            'driver'    => 'mysql',
+            'host'      => env('DB_HOST3', 'localhost'),
+            'database'  => env('DB_DATABASE3', 'yandex_maps_business'),
+            'username'  => env('DB_USERNAME3', 'root'),
+            'password'  => env('DB_PASSWORD3', 'qwerty'),
+            'charset'   => 'utf8',
+            'collation' => 'utf8_unicode_ci',
+            'prefix'    => '',
+            'strict'    => true,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),

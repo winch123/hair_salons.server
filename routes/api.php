@@ -36,6 +36,10 @@ Route::match(['get','post'], '/get_my_salon_services_active_requests', [App\Http
 Route::match(['get','post'], '/set_my_response', [App\Http\Controllers\Api\SalonController::class, 'SetMyResponse']);
 
 
+
+Route::match(['get','post'], '/yandex_maps_firms_save', [App\Http\Controllers\ProcessGeodata::class, 'YandexMapsFirmsSave']);
+
+
 Route::group(['namespace' => 'Api'], function () {
 
 });
