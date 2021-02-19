@@ -12,6 +12,8 @@ use Carbon\Carbon;
 
 class AuthController extends Controller
 {
+    public $users = 'laravel_system.users';
+
     function Register(Request $request) {
       dump($request->all());
 
@@ -48,18 +50,20 @@ class AuthController extends Controller
             ], 401);
         }
 
+        return response()->json($this->createToken($request->remember_me ? Carbon::now()->addMonth() : Carbon::now()->addDay()), 200);
+    }
+
+    private function createToken($expires_at = null) {
         $token = Auth::guard('web')->user()->createToken(config('app.name'));
         //$token = $request->user()->createToken(config('app.name'));
 
-        $token->token->expires_at = $request->remember_me ? Carbon::now()->addMonth() : Carbon::now()->addDay();
-
+        $token->token->expires_at = $expires_at ?: Carbon::now()->addMonth();
         $token->token->save();
-
-        return response()->json([
+        return [
             'token_type' => 'Bearer',
             'token' => $token->accessToken,
             'expires_at' => Carbon::parse($token->token->expires_at)->toDateTimeString()
-        ], 200);
+        ];
     }
 
     function Logout(Request $request) {
@@ -68,6 +72,48 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'You are successfully logged out',
         ]);
+    }
+
+    function SendSmsCode (Request $request) {
+        //$code = (string) rand(100000, 999999);
+        $code = '123';
+
+        $u = query("SELECT id FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]);
+        if (empty($u)) {
+            $id = query("INSERT INTO $this->users (name,password,auth_type,email) VALUES ('','','phone',?)", [$request->phone]);
+        }
+        else {
+            $id = $u[0]->id;
+        }
+        setExtra($id, ['smsCode' => $code, 'smsCodeTime' => date('Y-m-d H:i:s')], $this->users);
+
+        // отправка смс
+
+        return 'смс отправлен на номер ' . $request->phone;
+    }
+
+    function VerifySmsCode (Request $request) {
+        $ud = query("SELECT id, extra FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]);
+        if (!empty($ud)) {
+            $extra = json_decode($ud[0]->extra);
+            if ($extra->smsCode === $request->smsCode) {
+                $user = User::find($ud[0]->id);
+                Auth::guard('web')->login($user);
+                //return Auth::guard('web')->user();
+                return $this->createToken();
+            }
+        }
+        return 'Код не верен';
+    }
+
+    function SetPassword (Request $request) {
+        if ($request->user()) {
+            $count = query("UPDATE $this->users SET password=? WHERE id=?", [
+                bcrypt($request->new_password),
+                $request->user()->id,
+            ]);
+            return $count;
+        }
     }
 
     function test() {
@@ -88,5 +134,4 @@ class AuthController extends Controller
 
         return ['aaa' => 111] + $_GET + $_POST;
     }
-
 }

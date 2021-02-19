@@ -82,3 +82,19 @@ function mylog($d){
     $str .= $deb[0]['file'] .', '. $deb[0]['line'] .PHP_EOL.  $cont;
     file_put_contents($fn, $str, FILE_APPEND);
 }
+
+function setExtra(int $objId, array $attribs, string $tableName, string $attributesField='extra', string $keyField='id')
+{
+    if ( sizeof(array_merge($attribs, $attribs)) != sizeof($attribs) ) { // проверка ассоативности входного массива.
+        throw new Exception('non associative array', 0);
+    }
+    $a = query("SELECT $attributesField FROM $tableName WHERE $keyField=? ", [$objId]);
+    if (sizeof($a) == 0) {
+        throw new OutOfBoundsException("in $tableName not found $objId");
+    }
+    $old_a = json_decode($a[0]->$attributesField, true) ?: array();
+
+    $new_a = array_diff(array_merge($old_a, $attribs), [null]);  // объединяем и отбрасываем пустые элементы
+    //var_dump($new_a);
+    query("UPDATE $tableName SET $attributesField=? WHERE $keyField=?", [json_encode($new_a, JSON_UNESCAPED_UNICODE), $objId]);
+}

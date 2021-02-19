@@ -23,6 +23,9 @@ Route::match(['get','post'], '/login', [App\Http\Controllers\Api\AuthController:
 Route::match(['get','post'], '/logout', [App\Http\Controllers\Api\AuthController::class, 'Logout']);
 Route::match(['get','post'], '/test', [App\Http\Controllers\Api\AuthController::class, 'test']);
     //->middleware('auth:api');
+Route::match(['get','post'], '/send_sms_code', [App\Http\Controllers\Api\AuthController::class, 'SendSmsCode']);
+Route::match(['get','post'], '/verify_sms_code', [App\Http\Controllers\Api\AuthController::class, 'VerifySmsCode']);
+Route::match(['get','post'], '/set_password', [App\Http\Controllers\Api\AuthController::class, 'SetPassword']);
 
 Route::match(['get','post'], '/actual-workshifts-get', 'App\Http\Controllers\Api\SalonController@ActualWorkshiftsGet');
 Route::match(['get','post'], '/create-workshift', 'App\Http\Controllers\Api\SalonController@CreateWorkshift');
