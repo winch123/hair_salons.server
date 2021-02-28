@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\winch\YandexMapsParser;
+use App\winch\SalonAdmin;
 
 class ProcessGeodata extends Controller
 {
@@ -33,6 +34,27 @@ class ProcessGeodata extends Controller
         $process_count = $this->YandexMapsParser->process_firms($d);
 
         return ['process_count' => $process_count];
+    }
+
+    ////////////////////////////////
+
+    public function FindSalonsByStreetName()
+    {
+        $firms = query("SELECT id, name, locality, street, house
+            FROM firms
+            WHERE street LIKE ? OR street LIKE ? ", ["$_GET[street_name]%", "% $_GET[street_name]%"]);
+        return ['firms' => $firms];
+    }
+
+    public function addMeToSalon(Request $request, SalonAdmin $SalonAdmin)
+    {
+        return ['result' => $SalonAdmin->addMeToSalon($request->firmId)];
+    }
+
+    public function getMySalons(Request $request, SalonAdmin $SalonAdmin)
+    {
+        //return $request->user();
+        return $SalonAdmin->getMySalons();
     }
 
 }

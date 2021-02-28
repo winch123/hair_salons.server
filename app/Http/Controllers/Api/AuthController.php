@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Validator;
 use Carbon\Carbon;
+use DB;
+use App\winch\SalonAdmin;
 
 class AuthController extends Controller
 {
@@ -43,6 +45,7 @@ class AuthController extends Controller
     function Login(Request $request) {
         $credentials = $request->only('email', 'password');
 
+        sleep(1.1);
         if (!Auth::guard('web')->attempt($credentials)) {
             return response()->json([
                 'message' => 'You cannot sign with those credentials',
@@ -70,7 +73,7 @@ class AuthController extends Controller
         $request->user()->token()->revoke();
 
         return response()->json([
-            'message' => 'You are successfully logged out',
+            'message' => ['text' => 'You are successfully logged out'],
         ]);
     }
 
@@ -80,12 +83,12 @@ class AuthController extends Controller
 
         $u = query("SELECT id FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]);
         if (empty($u)) {
-            $id = query("INSERT INTO $this->users (name,password,auth_type,email) VALUES ('','','phone',?)", [$request->phone]);
+            $user_id = query("INSERT INTO $this->users (name,password,auth_type,email) VALUES ('','','phone',?)", [$request->phone]);
         }
         else {
-            $id = $u[0]->id;
+            $user_id = $u[0]->id;
         }
-        setExtra($id, ['smsCode' => $code, 'smsCodeTime' => date('Y-m-d H:i:s')], $this->users);
+        setExtra($user_id, ['smsCode' => $code, 'smsCodeTime' => date('Y-m-d H:i:s')], $this->users);
 
         // отправка смс
 
@@ -93,11 +96,17 @@ class AuthController extends Controller
     }
 
     function VerifySmsCode (Request $request) {
-        $ud = query("SELECT id, extra FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]);
+        $ud = current(query("SELECT id, extra, person_id FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]));
         if (!empty($ud)) {
-            $extra = json_decode($ud[0]->extra);
+            $extra = json_decode($ud->extra);
             if ($extra->smsCode === $request->smsCode) {
-                $user = User::find($ud[0]->id);
+                if (!$ud->person_id) { // создаем персону
+                    $person_id = query("INSERT INTO hs.persons (name) VALUES ('')");
+                    DB::connection('mysql')->table($this->users)
+                        ->where(['id' => $ud->id])
+                        ->update(['person_id' => $person_id]);
+                }
+                $user = User::find($ud->id);
                 Auth::guard('web')->login($user);
                 //return Auth::guard('web')->user();
                 return $this->createToken();
@@ -106,13 +115,26 @@ class AuthController extends Controller
         return 'Код не верен';
     }
 
-    function SetPassword (Request $request) {
-        if ($request->user()) {
+    function SetPassword (Request $request, SalonAdmin $SalonAdmin) { // установка пароля и других персональных данных
+        $user = $request->user();
+
+        if ($user) {
+            if (isset($request->nickname)) {
+                DB::connection('mysql')->table('hs.persons')
+                    ->where(['id' => $user->person_id])
+                    ->update(['name' => $request->nickname]);
+            }
+
             $count = query("UPDATE $this->users SET password=? WHERE id=?", [
-                bcrypt($request->new_password),
-                $request->user()->id,
+                bcrypt($request->password),
+                $user->id,
             ]);
-            return $count;
+
+            if ($count) {
+                return ['message' => ['title' => 'Обновление пароля.', 'text' => 'Пароль успешно изменён.'],
+                    'user' => $SalonAdmin->loadPerson($user->person_id),
+                ];
+            }
         }
     }
 

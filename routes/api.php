@@ -20,7 +20,6 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 
 Route::match(['get','post'], '/register', [App\Http\Controllers\Api\AuthController::class, 'Register']);
 Route::match(['get','post'], '/login', [App\Http\Controllers\Api\AuthController::class, 'Login']);
-Route::match(['get','post'], '/logout', [App\Http\Controllers\Api\AuthController::class, 'Logout']);
 Route::match(['get','post'], '/test', [App\Http\Controllers\Api\AuthController::class, 'test']);
     //->middleware('auth:api');
 Route::match(['get','post'], '/send_sms_code', [App\Http\Controllers\Api\AuthController::class, 'SendSmsCode']);
@@ -39,8 +38,14 @@ Route::match(['get','post'], '/get_my_salon_services_active_requests', [App\Http
 Route::match(['get','post'], '/set_my_response', [App\Http\Controllers\Api\SalonController::class, 'SetMyResponse']);
 
 
-
 Route::match(['get','post'], '/yandex_maps_firms_save', [App\Http\Controllers\ProcessGeodata::class, 'YandexMapsFirmsSave']);
+Route::match(['get','post'], '/find_salons_by_street_name', [App\Http\Controllers\ProcessGeodata::class, 'FindSalonsByStreetName']);
+
+Route::group(['middleware' => 'auth'], function() {
+    Route::match(['get','post'], '/logout', [App\Http\Controllers\Api\AuthController::class, 'Logout']);
+    Route::match(['get','post'], '/get_my_salons', [App\Http\Controllers\ProcessGeodata::class, 'getMySalons']);
+    Route::match(['get','post'], '/add_me_to_salon', [App\Http\Controllers\ProcessGeodata::class, 'addMeToSalon']);
+});
 
 
 Route::group(['namespace' => 'Api'], function () {
