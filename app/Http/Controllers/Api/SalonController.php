@@ -36,23 +36,33 @@ class SalonController extends Controller
             WHERE ws.salon_id=:salon_id
             GROUP BY ws.id
             ORDER BY ws.date_begin', ['salon_id'=>$salonId]);
-        $workshifts = $masters_ids = [];
+
+        $workshifts = [];
+        for ($i = 0; $i < 6; $i++) {
+            $d = strtotime("+$i day");
+            $workshifts[date("Y-m-d", $d)] = ['masters' => [], 'caption' => strftime('%d %b - %a', $d)];
+        }
+
         foreach ($wss as $ws) {
             extract((array)$ws);
+            //list($date_begin, $master_id) = (array) $ws;
             unset($ws->date_begin);
             unset($ws->master_id);
             $ws->text = strftime('%H:%M', strtotime($ws->time_begin)) . ' - ' . strftime('%H:%M', strtotime("+$ws->duration_minutes min", strtotime($ws->time_begin)));
 	    $ws->description = '<div>услуг: <b>' . $ws->total_services_count . '</b>, свободно: <b>' . ($ws->duration_minutes - $ws->busy_duration) . '</b> мин</div>';
-            $workshifts[$date_begin]['masters'][$master_id] = $ws;
-            $workshifts[$date_begin]['caption'] = strftime('%d %b - %a', strtotime($date_begin));
-            $masters_ids[] = $master_id;
+            if (isset($workshifts[$date_begin])) {
+                $workshifts[$date_begin]['masters'][$master_id] = $ws;
+            }
         }
 
-        //$persons = query("SELECT id,name FROM persons WHERE id in (?)", [$masters_ids]);
-        $persons = _gField(DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get(), 'id', false);
-	$user = Auth::user();
+        $persons = _gField(query("SELECT p.id, p.name
+                FROM persons p
+                JOIN salon_masters sm ON p.id=sm.person_id
+                WHERE salon_id=?", [$salonId]), 'id', false);
+        //$persons = _gField(DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get(), 'id', false);
+        //$user = Auth::user();
 
-        return compact('workshifts', 'persons', 'user');
+        return compact('workshifts', 'persons');
     }
 
     /*
@@ -247,7 +257,7 @@ class SalonController extends Controller
     private function _AddMastersToService(int $salonId, int $serviceId, array $masters=[])
     {
       // Предполагается указание списка матеров, при этом  нужна проверка, что все указанные мастера действительно работают в этом салоне.
-      $masters = query("SELECT person_id FROM masters WHERE salon_id=?", [$salonId]);
+      $masters = query("SELECT person_id FROM salon_masters WHERE salon_id=?", [$salonId]);
 
       foreach ($masters as $master) {
 	  DB::connection('mysql2')->table('masters_services')->insert([
@@ -259,7 +269,10 @@ class SalonController extends Controller
     }
 
     function GetSalonServicesList() {
-      return $this->_GetSalonServicesList((int) $_GET['salonId']);
+        $p = (object) $_REQUEST;
+        $this->authorize('master-of-salon', [$p->salonId, false]);
+
+        return $this->_GetSalonServicesList((int) $_GET['salonId']);
     }
 
     function SaveSalonService() {
