@@ -30,19 +30,26 @@ class AuthServiceProvider extends ServiceProvider
         Passport::routes();
 
         Gate::define('master-of-salon', function($user, $salonId, $adminRequired) {
-	    $f = query("SELECT sm.roles
-            FROM salon_masters sm
-            WHERE sm.salon_id=? AND sm.person_id=? ", [$salonId, $user->person_id]);
-	    //mylog($user->id);
-	    //mylog(compact('salonId', 'adminRequired') );
-	    //mylog($f);
-	    //var_dump($f); exit;
-	    if ($f) {
-	      return $adminRequired ? strpos($f[0]->roles, 'admin') !== false : strpos($f[0]->roles, 'ordinary') !== false;
-	    }
+            $f = query("SELECT sm.roles
+                FROM salon_masters sm
+                WHERE sm.salon_id=? AND sm.person_id=? ", [$salonId, $user->person_id]);
+            //mylog($user->id);
+            //mylog(compact('salonId', 'adminRequired') );
+            //mylog($f);
+            //var_dump($f); exit;
+            if ($f) {
+                $roles = strToAssoc($f[0]->roles);
+                if ($adminRequired) {
+                    return isset($roles->admin);
+                }
+                else {
+                    return isset($roles->ordinary) || isset($roles->admin);
+                }
+            }
 
             return false;
         });
+
         Gate::define('save-salon-service', function(User $user, $salonId) {
             return true;
         });

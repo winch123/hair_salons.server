@@ -41,7 +41,7 @@ class ProcessGeodata extends Controller
     public function FindSalonsByStreetName()
     {
         $firms = query("SELECT id, name, locality, street, house
-            FROM firms
+            FROM {firms}
             WHERE street LIKE ? OR street LIKE ? ", ["$_GET[street_name]%", "% $_GET[street_name]%"]);
         return ['firms' => $firms];
     }

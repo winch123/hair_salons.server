@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Auth;
 class SalonAdmin
 {
     function addMeToSalon($salonExternalId) {
-        $person = current(query("SELECT id FROM hs.persons WHERE user_id=?", [Auth::user()->id]));
+        //$person = current(query("SELECT id FROM hs.persons WHERE user_id=?", [Auth::user()->id]));
 
         $s = query("SELECT s.id, sm.person_id
             FROM hs.salons s
             LEFT JOIN hs.salon_masters sm ON s.id=sm.salon_id AND sm.person_id=?
-            WHERE s.external_id=? ", [$person->id, $salonExternalId]);
+            WHERE s.external_id=? ", [Auth::user()->person_id, $salonExternalId]);
 
         if (empty($s)) {
             $ext = query("SELECT name FROM yandex_maps_business.firms WHERE id=?", [$salonExternalId]);
@@ -27,7 +27,7 @@ class SalonAdmin
             $roles = null;
         }
 
-        query("INSERT INTO hs.salon_masters (salon_id, person_id, roles) VALUES (?,?,?) ", [$salonId, $person->id ,$roles]);
+        query("INSERT INTO hs.salon_masters (salon_id, person_id, roles) VALUES (?,?,?) ", [$salonId, Auth::user()->person_id, $roles]);
         return true;
     }
 
@@ -44,7 +44,31 @@ class SalonAdmin
         return ['salons' => $salons];
     }
 
-    function loadPerson($id) {
-        return current(query("SELECT id,name FROM hs.persons WHERE id=?", [$id]));
+    function loadPerson($personId) {
+        return current(query("SELECT id,name FROM hs.persons WHERE id=?", [$personId]));
+    }
+
+    function getMastersList($salonId) {
+        $l = query("SELECT p.id, p.name, sm.roles, sm.id memberId
+                FROM persons p
+                JOIN salon_masters sm ON p.id=sm.person_id
+                WHERE salon_id=?", [$salonId]);
+        foreach($l as &$l0) {
+            $l0->roles = strToAssoc($l0->roles);
+        }
+
+        return _gField($l, 'id', false);
+    }
+
+
+    function setRoles($salonId, $personId, $roleName, $action) {
+        /*
+        добавить админа
+         update `salon_masters` set roles=CONCAT(roles, ',admin') WHERE id=3
+
+        удалить админа
+         update `salon_masters` set roles=TRIM(BOTH ',' FROM REPLACE(CONCAT(',', roles, ','), ',admin,', ',')) WHERE id=3
+        */
+
     }
 }

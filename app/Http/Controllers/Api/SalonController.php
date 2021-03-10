@@ -8,6 +8,7 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use Gate;
 
+use App\winch\SalonAdmin;
 use App\winch\WorkshiftsRepository;
 
 class SalonController extends Controller
@@ -20,7 +21,7 @@ class SalonController extends Controller
     /*
      *	Возвращает существующие смены салона.
      */
-    function ActualWorkshiftsGet() {
+    function ActualWorkshiftsGet(SalonAdmin $SalonAdmin) {
         $salonId = $_GET['salonId'];
 	setlocale(LC_ALL, 'ru_RU', 'ru_RU.UTF-8', 'ru', 'russian');
 
@@ -55,12 +56,7 @@ class SalonController extends Controller
             }
         }
 
-        $persons = _gField(query("SELECT p.id, p.name
-                FROM persons p
-                JOIN salon_masters sm ON p.id=sm.person_id
-                WHERE salon_id=?", [$salonId]), 'id', false);
-        //$persons = _gField(DB::connection('mysql2')->table('persons')->whereIn('id', $masters_ids)->get(), 'id', false);
-        //$user = Auth::user();
+        $persons = $SalonAdmin->getMastersList($salonId);
 
         return compact('workshifts', 'persons');
     }
@@ -375,4 +371,25 @@ class SalonController extends Controller
 			]];
     }
 
+    function setMemberOfSalon() {
+        $p = (object) $_REQUEST;
+        $this->authorize('master-of-salon', [$p->salonId, true]);
+
+        if ($p->action === 'accept') {
+            setSetField($p->memberId, ['ordinary'], 2, 'salon_masters', 'roles');
+        }
+        elseif ($p->action === 'reject') {
+            setSetField($p->memberId, ['rejected'], 1, 'salon_masters', 'roles');
+        }
+
+    }
+
+    /*
+    function getMastersList(SalonAdmin $SalonAdmin) {
+        $p = (object) $_REQUEST;
+        $this->authorize('master-of-salon', [$p->salonId, false]);
+
+        return $SalonAdmin->getMastersList($p->salonId);
+    }
+    */
 }

@@ -45,6 +45,9 @@ Route::group(['middleware' => 'auth'], function() {
     Route::match(['get','post'], '/logout', [App\Http\Controllers\Api\AuthController::class, 'Logout']);
     Route::match(['get','post'], '/get_my_salons', [App\Http\Controllers\ProcessGeodata::class, 'getMySalons']);
     Route::match(['get','post'], '/add_me_to_salon', [App\Http\Controllers\ProcessGeodata::class, 'addMeToSalon']);
+    //Route::match(['get','post'], '/get_masters_list', [App\Http\Controllers\Api\SalonController::class, 'getMastersList']);
+
+    Route::match(['get','post'], '/salon/set_member', [App\Http\Controllers\Api\SalonController::class, 'setMemberOfSalon']);
 });
 
 

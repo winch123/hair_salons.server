@@ -6,8 +6,13 @@ ini_set('display_errors', 1);
 //use DB;
 
 function query($sql, $params=[]) {
-    //$connection = DB::connection('mysql2');
-    $connection = DB::connection('mysql3');
+    $connection = DB::connection('mysql2');
+    //$connection = DB::connection('mysql3');
+
+    $tables = [
+        '{firms}' => 'yandex_maps_business.firms',
+    ];
+    $sql = str_replace(array_keys($tables), $tables, $sql);
 
     list($sql, $params) = replaceParams($sql, $params);
 
@@ -97,4 +102,46 @@ function setExtra(int $objId, array $attribs, string $tableName, string $attribu
     $new_a = array_diff(array_merge($old_a, $attribs), [null]);  // объединяем и отбрасываем пустые элементы
     //var_dump($new_a);
     query("UPDATE $tableName SET $attributesField=? WHERE $keyField=?", [json_encode($new_a, JSON_UNESCAPED_UNICODE), $objId]);
+}
+
+function setSetField(int $objId, array $flags, int $act, string $tableName, string $fieldName, string $keyField='id')
+{
+    if ($act === 1) { //replace
+        query("UPDATE $tableName SET $fieldName=? WHERE $keyField=?", [implode(',' ,$flags), $objId]);
+    }
+    elseif ($act === 2) { //add
+        query("UPDATE $tableName SET $fieldName=CONCAT($fieldName, ?) WHERE $keyField=?", [','.implode(',' ,$flags), $objId]);
+    }
+    elseif ($act === 3) { //remove
+        foreach($flags as $flag) {
+            query("UPDATE $tableName SET $fieldName=TRIM(BOTH ',' FROM REPLACE(CONCAT(',', $fieldName, ','), ?, ',')) WHERE id=?",
+                [','.$flag.',', $objId]);
+        }
+    }
+}
+
+function strToAssoc(string $str): object
+{
+    // На выходе ассоциированный массив с ключами по наванием ролей и значениями true.
+    // Его удобно проверять, т.к. нет необходимости "бегать" по массиву.
+    return (object) array_fill_keys(array_diff(explode(',',  $str), ['']), true);
+}
+
+function genpass($len, $param=1){
+   $arr = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+	'1','2','3','4','5','6','7','8','9','0',
+        'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+        '.',',','(',')','[',']','!','?','&amp;','^','%','@','*','$','&lt;','&gt;','/','|','+','-','{','}','`','~');
+   $pass = "";
+   if ($param>count($arr)-1) $param=count($arr) - 1;
+   elseif ($param==1) $param=25;
+   elseif ($param==2) $param=35;
+   elseif ($param==3) $param=61;
+   elseif ($param==4) $param=count($arr) - 1;
+   for($i = 0; $i < $len; $i++){
+      // Вычисляем случайный индекс массива
+      $index = rand(0, $param);
+      $pass .= $arr[$index];
+   }
+   return $pass;
 }
