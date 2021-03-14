@@ -10,6 +10,7 @@ use Gate;
 
 use App\winch\SalonAdmin;
 use App\winch\WorkshiftsRepository;
+use App\winch\ImagesStore;
 
 class SalonController extends Controller
 {
@@ -89,20 +90,20 @@ class SalonController extends Controller
                 CAST(UNIX_TIMESTAMP(time_begin)/60 - UNIX_TIMESTAMP(CURDATE())/60 AS UNSIGNED) AS BeginShiftMinutes,
                 duration_minutes AS DurationShiftMinutes
             FROM workshifts
-            WHERE id=:shift_id', ['shift_id'=>$_GET['shiftId']]);
+            WHERE id=:shift_id', ['shift_id'=>$_REQUEST['shiftId']]);
 
         $schedule = query('SELECT
                 ms.id, ms.begin_minutes, ms.duration_minutes AS duration, ms.comment, ms.s_type, s.name AS text
             FROM masters_schedule ms
             LEFT JOIN services s ON ms.service_id=s.id
-            WHERE ms.shift_id=:shift_id', ['shift_id'=>$_GET['shiftId']]);
+            WHERE ms.shift_id=:shift_id', ['shift_id'=>$_REQUEST['shiftId']]);
 
         sleep(0.1);
         return ['actions' => [
             [
                 'type' => 'UPDATE_SCHEDULE_SHIFTS',
                 'value' => [
-                    $_GET['shiftId'] => ['schedule' => _gField($schedule, 'begin_minutes', true)] + (array)$ws[0]
+                    $_REQUEST['shiftId'] => ['schedule' => _gField($schedule, 'begin_minutes', true)] + (array)$ws[0]
                 ],
             ]
         ]];
@@ -144,10 +145,10 @@ class SalonController extends Controller
 
     function ScheduleAddService() {
         return [
-            'id' => $this->_ScheduleAddService($_GET['salonId'], $_GET['shiftId'], $_GET['serviceId'], 'own', $_GET['beginTime'], $_GET['endTime'], $_GET['comment']),
+            'id' => $this->_ScheduleAddService($_REQUEST['salonId'], $_REQUEST['shiftId'], $_REQUEST['serviceId'], 'own', $_REQUEST['beginTime'], $_REQUEST['endTime'], $_REQUEST['comment']),
             'redirect' => [
-                'url' => '/schedule-get',
-                'params' => ['shiftId' => $_GET['shiftId']],
+                'url' => 'schedule-get',
+                'params' => ['shiftId' => $_REQUEST['shiftId']],
             ],
         ];
     }
@@ -185,69 +186,6 @@ class SalonController extends Controller
     }
 
     /*
-     * 	Возвращает услуги салона в виде иерахии, начиная с категорий.
-     */
-    private function _GetSalonServicesList(int $salonId, int $catId=null, int $masrerId=null): array
-    {
-      /*
-        $sl = query('
-            SELECT ms.service_id, ms.price_default, ms.duration_default, s.parent_service, s.name
-            FROM masters_services ms
-            JOIN services s ON s.id=ms.service_id
-            WHERE ms.salon_id=:salon_id AND ms.person_id is null', ['salon_id'=>$salonId]);
-            */
-
-        $sl = DB::connection('mysql2')->table('masters_services AS ms');
-	$sl->select('ms.service_id', 'ms.price_default', 'ms.duration_default', 's.parent_service', 's.name')
-	    ->join('services AS s', 's.id', '=', 'ms.service_id')
-	    ->where('ms.salon_id','=', $salonId)
-	    ->whereNull('ms.person_id');
-
-	if ($catId) {
-	  $sl->where('s.parent_service', '=', $catId);
-	}
-
-	if ($masrerId) {
-	  $sl->join('masters_services AS master', 'master.service_id', '=', 'ms.service_id')
-	    ->where('master.person_id', '=', $masrerId);
-	}
-	//var_dump($sl->toSql());
-	//$sl->dd();
-
-        $sl = _gField($sl->get(), 'service_id');
-        //dump($sl);
-        //dump( array_unique(array_column($sl, 'parent_service')) ); exit;
-
-	$cats = DB::connection('mysql2')
-	    ->table('services')
-	    ->select('id','name')
-	    ->whereIn('id', array_unique(array_column($sl, 'parent_service')));
-        $cats = _gField($cats->get(), 'id');
-
-        $masters = query('
-            SELECT ms.person_id, ms.service_id, p.name
-            FROM masters_services ms
-            JOIN persons p ON p.id=ms.person_id
-            WHERE ms.salon_id=:salon_id AND ms.person_id is not null
-                    ', ['salon_id'=>$salonId]);
-        foreach ($masters as &$m) {
-	  if (isset($sl[$m->service_id])) {
-            $sl[$m->service_id]['masters'][$m->person_id] = &$m;
-            unset($m->service_id);
-            unset($m->person_id);
-	  }
-        }
-
-        //dump($sl);
-        foreach ($sl as $k=>$s) {
-	  //var_dump($s); echo '---';
-            $cats[$s['parent_service']]['services'][$k] = $s;
-        }
-
-        return $cats;
-    }
-
-    /*
      *
      */
     private function _AddMastersToService(int $salonId, int $serviceId, array $masters=[])
@@ -264,15 +202,17 @@ class SalonController extends Controller
       }
     }
 
-    function GetSalonServicesList() {
+    function GetSalonServicesList(SalonAdmin $SalonAdmin) {
+        // return ['request' => $_REQUEST, 'get' => $_GET, 'post' => $_POST];
         $p = (object) $_REQUEST;
         $this->authorize('master-of-salon', [$p->salonId, false]);
 
-        return $this->_GetSalonServicesList((int) $_GET['salonId']);
+        //return $this->_GetSalonServicesList((int) $_GET['salonId']);
+        return $SalonAdmin->_GetSalonServicesList((int) $p->salonId, isset($p->serviceId) ? $p->serviceId : null);
     }
 
-    function SaveSalonService() {
-	$p = (object) $_GET;
+    function SaveSalonService(SalonAdmin $SalonAdmin) {
+	$p = (object) $_REQUEST;
         // проверка прав: $user.person_id isAdmin in $_GET.salon_id ?
 	$this->authorize('master-of-salon', [$p->salonId, true]);
 
@@ -316,7 +256,8 @@ class SalonController extends Controller
         return [
 	    'serviceId' => $serviceId,
 	    'categoryId' => $catId,
-	    'servicesBaranch' => $this->_GetSalonServicesList((int) $p->salonId , $catId),
+	    //'servicesBaranch' => $this->_GetSalonServicesList((int) $p->salonId , $catId),
+	    'servicesBaranch' => $SalonAdmin->_GetSalonServicesList((int) $p->salonId , $serviceId),
 	];
 
 
@@ -381,8 +322,13 @@ class SalonController extends Controller
         elseif ($p->action === 'reject') {
             setSetField($p->memberId, ['rejected'], 1, 'salon_masters', 'roles');
         }
-
     }
+
+    function uploadImage(ImagesStore $ImagesStore) {
+        //return ['get' => $_GET, 'post' => $_POST, 'files' => $_FILES];
+        return $ImagesStore->saveImage($_FILES['image'], $_REQUEST['objId'], $_REQUEST['objType']);
+    }
+
 
     /*
     function getMastersList(SalonAdmin $SalonAdmin) {

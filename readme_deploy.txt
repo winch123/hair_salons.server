@@ -12,4 +12,8 @@ sudo chown 33 storage/framework/views
 ./artisan migrate:install
 ./artisan migrate
 
+
 ./artisan passport:install
+
+cd ./public/img
+ln -s /var/www/html/haircut_salons.server/storage/app/public/ public

@@ -50,6 +50,8 @@ Route::group(['middleware' => 'auth'], function() {
     Route::match(['get','post'], '/salon/set_member', [App\Http\Controllers\Api\SalonController::class, 'setMemberOfSalon']);
 });
 
+Route::match(['get','post'], '/upload_image', [App\Http\Controllers\Api\SalonController::class, 'uploadImage']);
+
 
 Route::group(['namespace' => 'Api'], function () {
 

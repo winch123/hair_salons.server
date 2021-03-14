@@ -66,7 +66,7 @@ return [
         'mysql2' => [
             'driver'    => 'mysql',
             'host'      => env('DB_HOST2', 'localhost'),
-            'database'  => env('DB_DATABASE2', 'hair_salons'),
+            'database'  => env('DB_DATABASE2', 'hs'),
             'username'  => env('DB_USERNAME2', 'root'),
             'password'  => env('DB_PASSWORD2', 'qwerty'),
             'charset'   => 'utf8',
