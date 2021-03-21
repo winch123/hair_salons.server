@@ -211,6 +211,7 @@ class SalonController extends Controller
         return $SalonAdmin->_GetSalonServicesList((int) $p->salonId, isset($p->serviceId) ? $p->serviceId : null);
     }
 
+/*
     function SaveSalonService(SalonAdmin $SalonAdmin) {
 	$p = (object) $_REQUEST;
         // проверка прав: $user.person_id isAdmin in $_GET.salon_id ?
@@ -238,7 +239,6 @@ class SalonController extends Controller
 	  //dump((array) $s[0]);
 	  list('id' => $serviceId, 'parent_service' => $catId, 'name' => $serviceName) = (array)$s[0];
 	}
-	//return [$serviceId, $catId, $serviceName];
 
         $isExistsMS = query("select id
 	    from masters_services
@@ -256,10 +256,8 @@ class SalonController extends Controller
         return [
 	    'serviceId' => $serviceId,
 	    'categoryId' => $catId,
-	    //'servicesBaranch' => $this->_GetSalonServicesList((int) $p->salonId , $catId),
 	    'servicesBaranch' => $SalonAdmin->_GetSalonServicesList((int) $p->salonId , $serviceId),
 	];
-
 
 	///////////////////////
         // update masters_services set price_default,duration_default
@@ -272,6 +270,7 @@ class SalonController extends Controller
             // delete from masters_services where person_id=$master_id and salon_id=? and service_id=?
         }
     }
+*/
 
     function GetMySalonServicesActiveRequests() {
       $p = (object) $_REQUEST;
@@ -326,9 +325,32 @@ class SalonController extends Controller
 
     function uploadImage(ImagesStore $ImagesStore) {
         //return ['get' => $_GET, 'post' => $_POST, 'files' => $_FILES];
-        return $ImagesStore->saveImage($_FILES['image'], $_REQUEST['objId'], $_REQUEST['objType']);
+        // TODO: нужна проверка прав на объект через салон. КАК???
+
+        return $ImagesStore->saveImage($_REQUEST['objId'], $_REQUEST['objType'], $_FILES['image']);
     }
 
+    function removeImage(ImagesStore $ImagesStore) {
+        // TODO: нужна проверка прав на объект через салон. КАК???
+        $ImagesStore->removeImage($_REQUEST['objId'], $_REQUEST['objType'], $_REQUEST['filename']);
+
+    }
+
+    function SaveSalonService(SalonAdmin $SalonAdmin) {
+        $p = (object) $_REQUEST;
+        //return $_REQUEST;
+        //return $p->servMastersList;
+        $this->authorize('master-of-salon', [$p->salonId, true]);
+
+        $servData = [];
+        foreach (['price_default'=>'servPrice', 'duration_default'=>'servDuration'] as $k => $d) {
+            if (isset($p->$d)) {
+                $servData[$k] = $p->$d;
+            }
+        }
+        $servMastersList = isset($p->servMastersList) ? (array) $p->servMastersList : [];
+        return $SalonAdmin->saveSalonService((int) $p->salonId, (int) $p->servId, $servData, $servMastersList);
+    }
 
     /*
     function getMastersList(SalonAdmin $SalonAdmin) {

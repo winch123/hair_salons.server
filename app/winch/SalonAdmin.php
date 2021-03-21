@@ -65,36 +65,40 @@ class SalonAdmin
      */
     function _GetSalonServicesList(int $salonId, int $serviceId=null): array
     {
-        $sl = DB::connection('mysql2')->table('masters_services AS ms');
+        $sl = DB::connection('mysql2')->table('salons_services AS ms');
         $sl->select('ms.id', 'ms.service_id', 'ms.price_default', 'ms.duration_default', 's.parent_service', 's.name')
             ->join('services AS s', 's.id', '=', 'ms.service_id')
-            ->where('ms.salon_id','=', $salonId)
-            ->whereNull('ms.person_id');
+            ->where('ms.salon_id','=', $salonId);
 
         if ($serviceId) {
-            $sl->where('s.id', '=', $serviceId);
+            $sl->where('ms.id', '=', $serviceId);
         }
         //var_dump($sl->toSql());
         //$sl->dd();
-        $sl = _gField($sl->get(), 'service_id', false);
-
+        $sl = _gField($sl->get(), 'id', false);
+        mylog($sl);
 
         $masters = query('
-            SELECT ms.person_id, ms.service_id, p.name
+            SELECT ms.person_id, ms.service_id, ss.id ss_id
             FROM masters_services ms
-            JOIN persons p ON p.id=ms.person_id
+            JOIN salons_services ss ON ms.salon_id=ss.salon_id AND ms.service_id=ss.service_id
             WHERE ms.salon_id=:salon_id AND ms.person_id is not null', ['salon_id'=>$salonId]);
-        foreach ($masters as &$m) {
-            if (isset($sl[$m->service_id])) {
-                $sl[$m->service_id]['masters'][$m->person_id] = true;
-                //unset($m->service_id);
-                //unset($m->person_id);
+        foreach ($masters as &$master) {
+            //mylog([$master, isset($sl[$master->id])]);
+            if (isset($sl[$master->ss_id])) {
+                //mylog('добавляем');
+                $sl[$master->ss_id]['masters'][$master->person_id] = true;
+                //unset($master->service_id);
+                //unset($master->person_id);
             }
         }
+        //mylog($sl);
+
         $imagesTree = (new ImagesStore)->getImagesOfObjects(array_keys($sl), 'masters_services');
         foreach($imagesTree as $k => $imgs) {
             $sl[$k]['images'] = $imgs;
         }
+        //var_dump($sl);
 
         if ($serviceId) { // возвращаем единственную услугу
             return $sl[$serviceId];
@@ -110,14 +114,29 @@ class SalonAdmin
             }
             return $cats;
         }
-
-        /*
-            * Надо делить на первоначальную загрузку всего дерева и на обновление конкретной услуги.
-                * на фронте эти процессы тоже разделятся.
-            * ?? Список мастеров переделать на массив их id.
-        */
     }
 
+    function saveSalonService(int $salonId, int $servId, array $servData, array $mastersList) {
+        //return $mastersList;
+        if ($servData) {
+            DB::connection('mysql2')->table('salons_services')
+                ->where('salon_id', $salonId)
+                ->where('service_id', $servId)
+                ->update($servData);
+        }
+
+        foreach($mastersList as $master) {
+            query("INSERT INTO masters_services (salon_id, service_id, person_id) VALUES (?,?,?)
+                    ON DUPLICATE KEY UPDATE price_default=null",
+                [$salonId, $servId, $master]);
+        }
+
+        $sql = "DELETE FROM masters_services WHERE salon_id=? AND service_id=? ";
+        if (!empty($mastersList)) {
+            $sql .= 'AND person_id NOT IN (ph0)';
+        }
+        query($sql, [$salonId, $servId, $mastersList]);
+    }
 
     function setRoles($salonId, $personId, $roleName, $action) {
         /*

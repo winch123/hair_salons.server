@@ -32,7 +32,7 @@ Route::match(['get','post'], '/schedule-get', 'App\Http\Controllers\Api\SalonCon
 Route::match(['get','post'], '/schedule-add-service', 'App\Http\Controllers\Api\SalonController@ScheduleAddService');
 Route::match(['get','post'], '/get-salon-services-list', 'App\Http\Controllers\Api\SalonController@GetSalonServicesList');
 Route::match(['get','post'], '/get-all-services-dir', 'App\Http\Controllers\Api\SalonController@GetAllServicesDir');
-Route::match(['get','post'], '/save-salon-service', 'App\Http\Controllers\Api\SalonController@SaveSalonService');
+// Route::match(['get','post'], '/save-salon-service', 'App\Http\Controllers\Api\SalonController@SaveSalonService');
 
 Route::match(['get','post'], '/get_my_salon_services_active_requests', [App\Http\Controllers\Api\SalonController::class, 'GetMySalonServicesActiveRequests']);
 Route::match(['get','post'], '/set_my_response', [App\Http\Controllers\Api\SalonController::class, 'SetMyResponse']);
@@ -48,9 +48,12 @@ Route::group(['middleware' => 'auth'], function() {
     //Route::match(['get','post'], '/get_masters_list', [App\Http\Controllers\Api\SalonController::class, 'getMastersList']);
 
     Route::match(['get','post'], '/salon/set_member', [App\Http\Controllers\Api\SalonController::class, 'setMemberOfSalon']);
-});
 
-Route::match(['get','post'], '/upload_image', [App\Http\Controllers\Api\SalonController::class, 'uploadImage']);
+    Route::match(['get','post'], '/upload_image', [App\Http\Controllers\Api\SalonController::class, 'uploadImage']);
+    Route::match(['get','post'], '/remove_image', [App\Http\Controllers\Api\SalonController::class, 'removeImage']);
+
+    Route::match(['get','post'], '/save_salon_service', [App\Http\Controllers\Api\SalonController::class, 'SaveSalonService']);
+});
 
 
 Route::group(['namespace' => 'Api'], function () {

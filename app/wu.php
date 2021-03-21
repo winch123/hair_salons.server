@@ -24,6 +24,8 @@ function query($sql, $params=[]) {
 	    return $connection->getPdo()->lastInsertId();
 	case 'UPDATE':
 	    return $connection->update($sql, $params);
+	    case 'DELETE':
+            return $connection->delete($sql, $params);
         default:
             throw new UnexpectedValueException("не известный тип запроса:\n $sql");
     }
