@@ -185,92 +185,58 @@ class SalonController extends Controller
 
     }
 
-    /*
-     *
-     */
-    private function _AddMastersToService(int $salonId, int $serviceId, array $masters=[])
-    {
-      // Предполагается указание списка матеров, при этом  нужна проверка, что все указанные мастера действительно работают в этом салоне.
-      $masters = query("SELECT person_id FROM salon_masters WHERE salon_id=?", [$salonId]);
-
-      foreach ($masters as $master) {
-	  DB::connection('mysql2')->table('masters_services')->insert([
-	    'service_id' => $serviceId,
-	    'salon_id' => $salonId,
-	    'person_id' => $master->person_id,
-	  ]);
-      }
-    }
-
     function GetSalonServicesList(SalonAdmin $SalonAdmin) {
         // return ['request' => $_REQUEST, 'get' => $_GET, 'post' => $_POST];
         $p = (object) $_REQUEST;
         $this->authorize('master-of-salon', [$p->salonId, false]);
 
-        //return $this->_GetSalonServicesList((int) $_GET['salonId']);
         return $SalonAdmin->_GetSalonServicesList((int) $p->salonId, isset($p->serviceId) ? $p->serviceId : null);
     }
 
-/*
-    function SaveSalonService(SalonAdmin $SalonAdmin) {
-	$p = (object) $_REQUEST;
-        // проверка прав: $user.person_id isAdmin in $_GET.salon_id ?
-	$this->authorize('master-of-salon', [$p->salonId, true]);
+
+    function CreateSalonService(SalonAdmin $SalonAdmin) {
+        $p = (object) $_REQUEST;
+        $this->authorize('master-of-salon', [$p->salonId, true]);
 
         // валидация
 
         if (empty($p->serviceId)) {
-	  $catId = (int) $p->catId;
-	  // проверить корректнось catId
+            $catId = (int) $p->catId;
+            // проверить корректнось catId
 
-	  $serviceId = DB::connection('mysql2')->table('services')->insertGetId([
-	      'parent_service' => $catId,
-	      'name' => $p->serviceName,
-	      'adding_salon' => $p->salonId,
-	   ]);
+            $serviceId = DB::connection('mysql2')->table('services')->insertGetId([
+                'parent_service' => $catId,
+                'name' => $p->serviceName,
+                'adding_salon' => $p->salonId,
+            ]);
         }
         else {
-	  $s = query('SELECT id, parent_service, name
-	      FROM services
-	      WHERE id=? AND parent_service IS NOT NULL AND (adding_salon IS NULL OR adding_salon=?)', [$p->serviceId, $p->salonId]);
-	  if (empty($s)) {
-	    // кинуть exception
-	  }
-	  //dump((array) $s[0]);
-	  list('id' => $serviceId, 'parent_service' => $catId, 'name' => $serviceName) = (array)$s[0];
-	}
-
-        $isExistsMS = query("select id
-	    from masters_services
-	    where person_id is null and salon_id=? and service_id=?", [$p->salonId, $serviceId]);
-        if (!$isExistsMS) {
-	  DB::connection('mysql2')->table('masters_services')->insert([
-	    'service_id' => $serviceId,
-	    'salon_id' => $p->salonId,
-	    'price_default' => 100,
-	    'duration_default' => 20,
-	  ]);
-	  $this->_AddMastersToService($p->salonId, $serviceId);
+            $s = query('SELECT id, parent_service, name
+                FROM services
+                WHERE id=? AND parent_service IS NOT NULL AND (adding_salon IS NULL OR adding_salon=?)', [$p->serviceId, $p->salonId]);
+            if (empty($s)) {
+                // кинуть exception
+            }
+            list('id' => $serviceId, 'parent_service' => $catId, 'name' => $serviceName) = (array)$s[0];
         }
+
+        if (query("SELECT id FROM salons_services WHERE salon_id=? and service_id=?", [$p->salonId, $serviceId])) {
+            throw new \Exception("Услуга $serviceId уже имеется в салоне $p->salonId");
+        }
+
+        $salonServiceId = DB::connection('mysql2')->table('salons_services')->insertGetId([
+            'service_id' => $serviceId,
+            'salon_id' => $p->salonId,
+        ]);
+        $SalonAdmin->saveSalonService($p->salonId, $serviceId, ['price_default' => 100, 'duration_default' => 10], []);
 
         return [
-	    'serviceId' => $serviceId,
-	    'categoryId' => $catId,
-	    'servicesBaranch' => $SalonAdmin->_GetSalonServicesList((int) $p->salonId , $serviceId),
-	];
-
-	///////////////////////
-        // update masters_services set price_default,duration_default
-        //     where person_id is null and salon_id=? and service_id=?
-
-        foreach($_GET['addMasters'] as $master_id) {
-            // replase masters_services (person_id, service_id, salon_id, price_default,duration_default) vlalues ($master_id....)
-        }
-        foreach($_GET['deleteMasters'] as $master_id) {
-            // delete from masters_services where person_id=$master_id and salon_id=? and service_id=?
-        }
+            'salonServiceId' => $salonServiceId,
+            'categoryId' => $catId,
+            'servicesBranch' => $SalonAdmin->_GetSalonServicesList((int) $p->salonId , $salonServiceId),
+        ];
     }
-*/
+
 
     function GetMySalonServicesActiveRequests() {
       $p = (object) $_REQUEST;

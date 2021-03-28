@@ -65,24 +65,24 @@ class SalonAdmin
      */
     function _GetSalonServicesList(int $salonId, int $serviceId=null): array
     {
-        $sl = DB::connection('mysql2')->table('salons_services AS ms');
-        $sl->select('ms.id', 'ms.service_id', 'ms.price_default', 'ms.duration_default', 's.parent_service', 's.name')
-            ->join('services AS s', 's.id', '=', 'ms.service_id')
-            ->where('ms.salon_id','=', $salonId);
+        $sl = DB::connection('mysql2')->table('salons_services AS ss')
+            ->select('ss.id', 'ss.service_id', 'ss.price_default', 'ss.duration_default', 's.parent_service', 's.name')
+            ->join('services AS s', 's.id', '=', 'ss.service_id')
+            ->where('ss.salon_id','=', $salonId);
 
         if ($serviceId) {
-            $sl->where('ms.id', '=', $serviceId);
+            $sl->where('ss.id', '=', $serviceId);
         }
         //var_dump($sl->toSql());
         //$sl->dd();
         $sl = _gField($sl->get(), 'id', false);
-        mylog($sl);
+        //mylog($sl);
 
         $masters = query('
-            SELECT ms.person_id, ms.service_id, ss.id ss_id
+            SELECT ms.person_id, ss.service_id, ss.id ss_id
             FROM masters_services ms
-            JOIN salons_services ss ON ms.salon_id=ss.salon_id AND ms.service_id=ss.service_id
-            WHERE ms.salon_id=:salon_id AND ms.person_id is not null', ['salon_id'=>$salonId]);
+            JOIN salons_services ss ON ms.salon_service_id=ss.id
+            WHERE ss.salon_id=:salon_id', ['salon_id'=>$salonId]);
         foreach ($masters as &$master) {
             //mylog([$master, isset($sl[$master->id])]);
             if (isset($sl[$master->ss_id])) {
@@ -98,10 +98,9 @@ class SalonAdmin
         foreach($imagesTree as $k => $imgs) {
             $sl[$k]['images'] = $imgs;
         }
-        //var_dump($sl);
 
         if ($serviceId) { // возвращаем единственную услугу
-            return $sl[$serviceId];
+            return $sl;
         }
         else { // расфасовка по категориям
             $cats = DB::connection('mysql2')
@@ -117,25 +116,24 @@ class SalonAdmin
     }
 
     function saveSalonService(int $salonId, int $servId, array $servData, array $mastersList) {
+        $ssId = current(query("SELECT id FROM salons_services WHERE salon_id=? AND service_id=?", [$salonId, $servId]))->id;
         //return $mastersList;
         if ($servData) {
-            DB::connection('mysql2')->table('salons_services')
-                ->where('salon_id', $salonId)
-                ->where('service_id', $servId)
-                ->update($servData);
+            DB::connection('mysql2')->table('salons_services')->where('id', $ssId)->update($servData);
         }
 
+        //TODO: возможно нужна проверка, что все указанные мастера действительно работают в этом салоне.
         foreach($mastersList as $master) {
-            query("INSERT INTO masters_services (salon_id, service_id, person_id) VALUES (?,?,?)
+            query("INSERT INTO masters_services (salon_service_id, person_id) VALUES (?,?)
                     ON DUPLICATE KEY UPDATE price_default=null",
-                [$salonId, $servId, $master]);
+                [$ssId, $master]);
         }
 
-        $sql = "DELETE FROM masters_services WHERE salon_id=? AND service_id=? ";
+        $sql = "DELETE FROM masters_services WHERE salon_service_id=? ";
         if (!empty($mastersList)) {
             $sql .= 'AND person_id NOT IN (ph0)';
         }
-        query($sql, [$salonId, $servId, $mastersList]);
+        query($sql, [$ssId, $mastersList]);
     }
 
     function setRoles($salonId, $personId, $roleName, $action) {

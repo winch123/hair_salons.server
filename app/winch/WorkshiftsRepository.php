@@ -7,12 +7,12 @@ class WorkshiftsRepository
 {
 
     function GetMySalonServicesActiveRequests($salonId) {
-		$res = query("SELECT s.name service_name, ms.price_default, ms.duration_default, rs.desired_time, rs.id, rs.service_id,
+		$res = query("SELECT s.name service_name, ss.price_default, ss.duration_default, rs.desired_time, rs.id, rs.service_id,
 							60 - (now()-rs.created_at) AS limit_seconds
 			FROM requests_to_salons rs
 			JOIN services s ON s.id=rs.service_id
-			JOIN masters_services ms ON ms.service_id=rs.service_id AND ms.person_id IS NULL AND ms.salon_id=?
-			WHERE rs.status='proposed' AND rs.salon_id=? ", [$salonId, $salonId]);
+			JOIN salons_services ss ON ss.service_id=rs.service_id AND ss.salon_id=?
+			WHERE rs.status='proposed' AND rs.salon_id=?", [$salonId, $salonId]);
 
 		foreach($res as &$request) {
 			$interval = (object)['start'=>$request->desired_time, 'end'=>$request->desired_time];

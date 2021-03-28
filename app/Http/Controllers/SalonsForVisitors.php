@@ -14,10 +14,10 @@ class SalonsForVisitors extends Controller
 
     public function test()
     {
-        $services = query("SELECT ms.salon_id, s.id, s.name
-            FROM masters_services ms
-            JOIN services s ON ms.service_id=s.id
-            WHERE ms.salon_id=2 ");
+        $services = query("SELECT ss.salon_id, s.id, s.name
+            FROM salons_services ss
+            JOIN services s ON ss.service_id=s.id
+            WHERE ss.salon_id=2 ");
         return view('page1', ['services' => $services]);
     }
 
