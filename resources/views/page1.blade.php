@@ -19,7 +19,7 @@
     <button id="get_unoccupied_schedule">get_unoccupied_schedule</button>
     <div id="shedule_result"></div>
     <br/>
-    <textarea style="width:555px; height:77px;"></textarea>
+    <textarea id="request_comment" maxlength="333" style="width:555px; height:77px;"></textarea>
     <br/>
     <div id="tik"></div>
     <div id="result" style="display:none;">получили ответ: <span/> </div>
@@ -32,16 +32,18 @@
 
   <script>
   $(function() {
-    let salon_id = 2;
+    let salon_id = 4;
 
     $(document).on('click', '#shedule_result button', function() {
 		console.log( $(this).data('time') );
 
 		$.ajax('/send-request-to-salon', {
+			type: 'GET',
 			data: {
 				salon_id: salon_id,
 				service_id: $('#sel_service').val(),
 				desired_time: $(this).data('time'),
+				comment: $('#request_comment').val(),
 			},
 			success: function(res) {
 				if (res.message) {
@@ -49,6 +51,7 @@
 				}
 			},
 		});
+		$('#request_comment').val('');
 		$('#tik').text('отправляем запрос...');
 		let tiks = 60;
 		$('#result').hide();
@@ -76,7 +79,7 @@
 
         $.ajax('/get-unoccupied-schedule', {
 			data: {
-				salonId: 2,
+				salonId: salon_id,
 				serviceId: $("#sel_service").val(),
 				date: $("#sel_date").val(),
 			},

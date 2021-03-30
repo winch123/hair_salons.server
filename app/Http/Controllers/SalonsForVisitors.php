@@ -17,15 +17,15 @@ class SalonsForVisitors extends Controller
         $services = query("SELECT ss.salon_id, s.id, s.name
             FROM salons_services ss
             JOIN services s ON ss.service_id=s.id
-            WHERE ss.salon_id=2 ");
+            WHERE ss.salon_id=4 ");
         return view('page1', ['services' => $services]);
     }
 
 	public function sendRequestToSalon()
 	{
 		$p = (object) $_REQUEST;
-		$id = query("INSERT INTO requests_to_salons (salon_id, service_id, desired_time)
-				VALUES (?,?,?)", [$p->salon_id, $p->service_id, $p->desired_time]);
+		$id = query("INSERT INTO requests_to_salons (salon_id, service_id, desired_time, comment)
+				VALUES (?,?,?,?)", [$p->salon_id, $p->service_id, $p->desired_time, $p->comment]);
 
 		for ($i=0; $i<60; $i++) {
 			sleep(1);
@@ -50,7 +50,7 @@ class SalonsForVisitors extends Controller
 		$p = (object) $_REQUEST;
 
 		$interval = (object)['start'=>$p->date.' 06:00', 'end'=>$p->date.' 21:00'];
-		$workshifts = $this->WorkshiftsRepository->loadShiftsByIntervalAndService($p->salonId, $interval, $p->serviceId);
+		$workshifts = $this->WorkshiftsRepository->loadShiftsByIntervalAndService([$p->salonId], $interval, $p->serviceId);
 		$min_t = $max_t = null;
 
 		foreach ($workshifts as &$ws) {

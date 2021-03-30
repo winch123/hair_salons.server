@@ -16,8 +16,11 @@ class WorkshiftsRepository
 
 		foreach($res as &$request) {
 			$interval = (object)['start'=>$request->desired_time, 'end'=>$request->desired_time];
-			$this->workshifts = $this->loadShiftsByIntervalAndService($salonId, $interval, $request->service_id);
+			$this->workshifts = $this->loadShiftsByIntervalAndService([$salonId], $interval, $request->service_id);
 			$request->vacancyInShifts = $this->findPlaceForIntervalInShifts($request->desired_time, $request->service_id);
+			$desired_time = strtotime($request->desired_time);
+			$request->title = date("H:i", $desired_time) .' '. $request->service_name;
+			$request->desired_time = date("H:i d M Y", $desired_time);
 		}
 
 		return [
@@ -181,15 +184,21 @@ class WorkshiftsRepository
 	*
 	* Загружаем смены, которые ПЕРЕСЕКАЮТСЯ с заданным временным промежутком и могут выполнить нужную услугу.
 	*/
-	function loadShiftsByIntervalAndService($salonId, $interval, $serviceId) {
-		$sql = "SELECT ws.id, ws.master_id, ADDTIME(ws.date_begin, ws.time_begin) shift_begin, ws.duration_minutes
+	function loadShiftsByIntervalAndService(array $salonIds, $interval, $serviceId) {
+		$sql = "SELECT
+                    ws.id,
+                    ws.master_id,
+                    ADDTIME(ws.date_begin, ws.time_begin) shift_begin,
+                    TIMESTAMPADD(MINUTE, ws.duration_minutes, ADDTIME(ws.date_begin, ws.time_begin)) shift_end,
+                    ws.duration_minutes
 			FROM workshifts ws
-			JOIN masters_services ms ON ms.salon_id=ws.salon_id AND ms.person_id=ws.master_id
-			WHERE ws.salon_id=?
-				AND ms.service_id=?
+			JOIN salons_services ss ON ss.salon_id=ws.salon_id
+			JOIN masters_services ms ON ss.id=salon_service_id AND ms.person_id=ws.master_id
+			WHERE ws.salon_id in (ph0)
+				AND ss.service_id=?
 				AND ADDTIME(ws.date_begin, ws.time_begin) < ?
 				AND TIMESTAMPADD(MINUTE, ws.duration_minutes, ADDTIME(ws.date_begin, ws.time_begin)) > ?";
-		$params = [$salonId, $serviceId, $interval->end, $interval->start];
+		$params = [$salonIds, $serviceId, $interval->end, $interval->start];
 
 		return $this->loadShifts(_gField(query($sql, $params), 'id', false));
 	}

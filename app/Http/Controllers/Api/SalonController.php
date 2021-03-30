@@ -112,7 +112,7 @@ class SalonController extends Controller
     /*
      *	Добавление услуги в рассписание мастера.
      */
-    private function _ScheduleAddService($salonId, $shiftId, $servId, $servType, $beginTime, $endTime=null, $comment=null) {
+    private function _ScheduleAddService($salonId, $shiftId, $servId, $servType, $beginTime, $endTime=null, $comment='') {
 
 		$ws = current(query("SELECT date_begin, time_begin, duration_minutes, master_id FROM workshifts WHERE id=?", [$shiftId]));
 
