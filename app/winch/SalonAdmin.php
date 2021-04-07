@@ -17,14 +17,14 @@ class SalonAdmin
         if (empty($s)) {
             $ext = query("SELECT name FROM yandex_maps_business.firms WHERE id=?", [$salonExternalId]);
             $salonId = query("INSERT INTO hs.salons (name, external_id) VALUES (?,?)", [$ext[0]->name, $salonExternalId]);
-            $roles = 'admin';
+            $roles = 'ordinary,admin';
         }
         else {
             if ($s[0]->person_id) { // уже имеем этот салон
                 return false;
             }
             $salonId = $s[0]->id;
-            $roles = null;
+            $roles = 'requested';
         }
 
         query("INSERT INTO hs.salon_masters (salon_id, person_id, roles) VALUES (?,?,?) ", [$salonId, Auth::user()->person_id, $roles]);
@@ -41,7 +41,7 @@ class SalonAdmin
             $salon->myRoles = array_diff(explode(',',  $salon->myRoles), ['']);
         }
 
-        return ['salons' => $salons];
+        return ['salons' => _gField($salons, 'id', false)];
     }
 
     function loadPerson($personId) {
@@ -99,20 +99,16 @@ class SalonAdmin
             $sl[$k]['images'] = $imgs;
         }
 
-        if ($serviceId) { // возвращаем единственную услугу
-            return $sl;
+        // расфасовка по категориям
+        $cats = DB::connection('mysql2')
+            ->table('services')
+            ->select('id','name')
+            ->whereIn('id', array_unique(array_column($sl, 'parent_service')));
+        $cats = _gField($cats->get(), 'id', false);
+        foreach ($sl as $k => $s) {
+            $cats[$s['parent_service']]['services'][$k] = $s;
         }
-        else { // расфасовка по категориям
-            $cats = DB::connection('mysql2')
-                ->table('services')
-                ->select('id','name')
-                ->whereIn('id', array_unique(array_column($sl, 'parent_service')));
-            $cats = _gField($cats->get(), 'id', false);
-            foreach ($sl as $k => $s) {
-                $cats[$s['parent_service']]['services'][$k] = $s;
-            }
-            return $cats;
-        }
+        return $cats;
     }
 
     function saveSalonService(int $salonId, int $servId, array $servData, array $mastersList) {

@@ -57,9 +57,7 @@ class SalonController extends Controller
             }
         }
 
-        $persons = $SalonAdmin->getMastersList($salonId);
-
-        return compact('workshifts', 'persons');
+        return compact('workshifts');
     }
 
     /*
@@ -190,7 +188,10 @@ class SalonController extends Controller
         $p = (object) $_REQUEST;
         $this->authorize('master-of-salon', [$p->salonId, false]);
 
-        return $SalonAdmin->_GetSalonServicesList((int) $p->salonId, isset($p->serviceId) ? $p->serviceId : null);
+        return [
+            'services' => $SalonAdmin->_GetSalonServicesList((int) $p->salonId, isset($p->serviceId) ? $p->serviceId : null),
+            'persons' => $SalonAdmin->getMastersList($p->salonId),
+        ];
     }
 
 
@@ -215,8 +216,9 @@ class SalonController extends Controller
                 FROM services
                 WHERE id=? AND parent_service IS NOT NULL AND (adding_salon IS NULL OR adding_salon=?)', [$p->serviceId, $p->salonId]);
             if (empty($s)) {
-                // кинуть exception
+                throw new \Exception("Не смогли найти сервис: $p->serviceId в салоне: $p->salonId");
             }
+
             list('id' => $serviceId, 'parent_service' => $catId, 'name' => $serviceName) = (array)$s[0];
         }
 

@@ -30,7 +30,6 @@ Route::match(['get','post'], '/actual-workshifts-get', 'App\Http\Controllers\Api
 Route::match(['get','post'], '/create-workshift', 'App\Http\Controllers\Api\SalonController@CreateWorkshift');
 Route::match(['get','post'], '/schedule-get', 'App\Http\Controllers\Api\SalonController@ScheduleGet');
 Route::match(['get','post'], '/schedule-add-service', 'App\Http\Controllers\Api\SalonController@ScheduleAddService');
-Route::match(['get','post'], '/get-salon-services-list', 'App\Http\Controllers\Api\SalonController@GetSalonServicesList');
 Route::match(['get','post'], '/get-all-services-dir', 'App\Http\Controllers\Api\SalonController@GetAllServicesDir');
 
 Route::match(['get','post'], '/get_my_salon_services_active_requests', [App\Http\Controllers\Api\SalonController::class, 'GetMySalonServicesActiveRequests']);
@@ -53,6 +52,7 @@ Route::group(['middleware' => 'auth'], function() {
 
     Route::match(['get','post'], '/create_salon_service', [App\Http\Controllers\Api\SalonController::class, 'CreateSalonService']);
     Route::match(['get','post'], '/save_salon_service', [App\Http\Controllers\Api\SalonController::class, 'SaveSalonService']);
+    Route::match(['get','post'], '/get-salon-services-list', 'App\Http\Controllers\Api\SalonController@GetSalonServicesList');
 });
 
 
