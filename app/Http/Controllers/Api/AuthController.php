@@ -14,7 +14,7 @@ use App\winch\SalonAdmin;
 
 class AuthController extends Controller
 {
-    public $users = 'laravel_system.users';
+    public $users = getenv('DB_DATABASE') . '.users';
 
     function Register(Request $request) {
       dump($request->all());

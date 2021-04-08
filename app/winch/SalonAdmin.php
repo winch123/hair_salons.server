@@ -15,7 +15,7 @@ class SalonAdmin
             WHERE s.external_id=? ", [Auth::user()->person_id, $salonExternalId]);
 
         if (empty($s)) {
-            $ext = query("SELECT name FROM yandex_maps_business.firms WHERE id=?", [$salonExternalId]);
+            $ext = query("SELECT name FROM {firms} WHERE id=?", [$salonExternalId]);
             $salonId = query("INSERT INTO hs.salons (name, external_id) VALUES (?,?)", [$ext[0]->name, $salonExternalId]);
             $roles = 'ordinary,admin';
         }

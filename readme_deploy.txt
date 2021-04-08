@@ -10,9 +10,12 @@ sudo chown 33 storage/framework/views
 
 cp .env.example .env
 
+# ./artisan config:cache
+./artisan config:clear
 ./artisan tinker
+        DB::connection('mysql3')->getPdo();
 
-./artisan config:cache
+./artisan db:seed
 ./artisan migrate:install
 ./artisan migrate
 

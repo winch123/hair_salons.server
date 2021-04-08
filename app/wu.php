@@ -10,7 +10,7 @@ function query($sql, $params=[]) {
     //$connection = DB::connection('mysql3');
 
     $tables = [
-        '{firms}' => 'yandex_maps_business.firms',
+        '{firms}' => getenv('DB_DATABASE3') . '.firms',
     ];
     $sql = str_replace(array_keys($tables), $tables, $sql);
 
