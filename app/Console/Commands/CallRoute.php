@@ -39,7 +39,7 @@ class CallRoute extends Command
      */
     public function handle()
     {
-       setExtra(2, ['bb' => 222], 'laravel_system.users');
+       // setExtra(2, ['bb' => 222], w_getEnv('DB_DATABASE') . '.users');
        //query("SELECT * FROM laravel_system.users");
     }
 

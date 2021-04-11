@@ -14,8 +14,6 @@ use App\winch\SalonAdmin;
 
 class AuthController extends Controller
 {
-    public $users = getenv('DB_DATABASE') . '.users';
-
     function Register(Request $request) {
       dump($request->all());
 
@@ -81,14 +79,14 @@ class AuthController extends Controller
         //$code = (string) rand(100000, 999999);
         $code = '123';
 
-        $u = query("SELECT id FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]);
+        $u = query("SELECT id FROM {users} WHERE email=? AND auth_type='phone'", [$request->phone]);
         if (empty($u)) {
-            $user_id = query("INSERT INTO $this->users (name,password,auth_type,email) VALUES ('','','phone',?)", [$request->phone]);
+            $user_id = query("INSERT INTO {users} (name,password,auth_type,email) VALUES ('','','phone',?)", [$request->phone]);
         }
         else {
             $user_id = $u[0]->id;
         }
-        setExtra($user_id, ['smsCode' => $code, 'smsCodeTime' => date('Y-m-d H:i:s')], $this->users);
+        setExtra($user_id, ['smsCode' => $code, 'smsCodeTime' => date('Y-m-d H:i:s')], '{users}');
 
         // отправка смс
 
@@ -96,13 +94,13 @@ class AuthController extends Controller
     }
 
     function VerifySmsCode (Request $request) {
-        $ud = current(query("SELECT id, extra, person_id FROM $this->users WHERE email=? AND auth_type='phone'", [$request->phone]));
+        $ud = current(query("SELECT id, extra, person_id FROM {users} WHERE email=? AND auth_type='phone'", [$request->phone]));
         if (!empty($ud)) {
             $extra = json_decode($ud->extra);
             if ($extra->smsCode === $request->smsCode) {
                 if (!$ud->person_id) { // создаем персону
-                    $person_id = query("INSERT INTO hs.persons (name) VALUES ('')");
-                    DB::connection('mysql')->table($this->users)
+                    $person_id = query("INSERT INTO persons (name) VALUES ('')");
+                    DB::connection('mysql')->table('users')
                         ->where(['id' => $ud->id])
                         ->update(['person_id' => $person_id]);
                 }
@@ -120,12 +118,12 @@ class AuthController extends Controller
 
         if ($user) {
             if (isset($request->nickname)) {
-                DB::connection('mysql')->table('hs.persons')
+                DB::connection('mysql2')->table('persons')
                     ->where(['id' => $user->person_id])
                     ->update(['name' => $request->nickname]);
             }
 
-            $count = query("UPDATE $this->users SET password=? WHERE id=?", [
+            $count = query("UPDATE {users} SET password=? WHERE id=?", [
                 bcrypt($request->password),
                 $user->id,
             ]);

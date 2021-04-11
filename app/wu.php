@@ -10,7 +10,8 @@ function query($sql, $params=[]) {
     //$connection = DB::connection('mysql3');
 
     $tables = [
-        '{firms}' => getenv('DB_DATABASE3') . '.firms',
+        '{firms}' => env('DB_DATABASE3') . '.firms',
+        '{users}' => env('DB_DATABASE') . '.users',
     ];
     $sql = str_replace(array_keys($tables), $tables, $sql);
 
@@ -45,6 +46,27 @@ function replaceParams($sql, $params) {
 	}
 	return array($sql, $p);
 }
+
+/*
+function w_getEnv($env_name) {  // костыльная функция для получения настроек из .env
+    $handle = @fopen(__DIR__.'/../.env', 'r');
+
+    if ($handle) {
+        while (($buffer = fgets($handle, 4096)) !== false) {
+            @list($name, $val) = explode('=', $buffer);
+            if ($name == $env_name) {
+                fclose($handle);
+                return trim($val);
+            }
+        }
+        if (!feof($handle)) {
+            throw new Exception('Ошибка: fgets() неожиданно потерпел неудачу');
+
+        }
+        fclose($handle);
+    }
+}
+*/
 
 function _gField(Iterable $db_array, string $field_name, bool $unset_original=true): array
 {
