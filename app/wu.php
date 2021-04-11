@@ -68,7 +68,7 @@ function w_getEnv($env_name) {  // костыльная функция для п
 }
 */
 
-function _gField(Iterable $db_array, string $field_name, bool $unset_original=true): array
+function _gField(Iterable $db_array, string $field_name='id', bool $unset_original=false): array
 {
     $res = array();
     foreach ($db_array as $row) {

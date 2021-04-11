@@ -14,11 +14,44 @@ class SalonsForVisitors extends Controller
 
     public function test()
     {
-        $services = query("SELECT ss.salon_id, s.id, s.name
+        return view('page1', []);
+    }
+
+    function getServicesList() {
+        $params = [];
+        $sql = "SELECT s.id, s.name, s.parent_service, count(ss.salon_id) count_salons
             FROM salons_services ss
             JOIN services s ON ss.service_id=s.id
-            WHERE ss.salon_id=4 ");
-        return view('page1', ['services' => $services]);
+            GROUP BY s.id ";
+
+        if (isset($_REQUEST['salons'])) {
+            $sql .= " WHERE ss.salon_id IN (ph0) ";
+            $params[] = $_REQUEST['salons'];
+        }
+
+        $services = query($sql, $params);
+        $cats = query("SELECT id, name FROM services WHERE parent_service IS NULL");
+        $cats = _gField($cats);
+
+        foreach ($services as $serv) {
+            $cats[$serv->parent_service]['services'][] = $serv;
+        }
+        foreach ($cats as $k => $v) { // удаление пустых категорий
+            if (empty($v['services'])) {
+                unset($cats[$k]);
+            }
+        }
+
+        return $cats;
+    }
+
+    function getSalonsPerformingService()
+    {
+        $salons = query("SELECT s.id, s.name, ss.price_default, ss.duration_default FROM salons_services ss
+            JOIN salons s ON s.id=ss.salon_id
+            WHERE ss.service_id=?", [$_REQUEST['service_id']]);
+
+        return _gField($salons);
     }
 
 	public function sendRequestToSalon()
