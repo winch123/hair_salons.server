@@ -16,6 +16,7 @@ function query($sql, $params=[]) {
     $sql = str_replace(array_keys($tables), $tables, $sql);
 
     list($sql, $params) = replaceParams($sql, $params);
+    //mylog(compact('sql','params'));
 
     switch (strtoupper(substr(trim($sql), 0, 6))) {
         case 'SELECT':
@@ -95,8 +96,7 @@ function timeToMinutes($time_str) {
 }
 
 function mylog($d){
-    //$fn = '/tmp/test1';
-    $fn = '/home/winch/1/test1';
+    $fn = '../storage/logs/winch_test';
     $deb = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
 
     if(is_array($d) || is_object($d)) {

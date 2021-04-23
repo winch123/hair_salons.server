@@ -24,7 +24,7 @@ class SalonController extends Controller
      */
     function ActualWorkshiftsGet(SalonAdmin $SalonAdmin) {
         $salonId = $_GET['salonId'];
-	setlocale(LC_ALL, 'ru_RU', 'ru_RU.UTF-8', 'ru', 'russian');
+        // setlocale(LC_ALL, 'ru_RU', 'ru_RU.UTF-8', 'ru', 'russian');
 
         //if (! Gate::allows('is-master-of-salon', $salonId)) {
         //    return ['no access'];
@@ -36,7 +36,7 @@ class SalonController extends Controller
             FROM workshifts AS ws
             LEFT JOIN masters_schedule AS ms ON ws.id=ms.shift_id
             WHERE ws.salon_id=:salon_id
-            GROUP BY ws.id
+            GROUP BY ws.id, ws.master_id, ws.date_begin, ws.time_begin, ws.duration_minutes
             ORDER BY ws.date_begin', ['salon_id'=>$salonId]);
 
         $workshifts = [];
@@ -47,7 +47,6 @@ class SalonController extends Controller
 
         foreach ($wss as $ws) {
             extract((array)$ws);
-            //list($date_begin, $master_id) = (array) $ws;
             unset($ws->date_begin);
             unset($ws->master_id);
             $ws->text = strftime('%H:%M', strtotime($ws->time_begin)) . ' - ' . strftime('%H:%M', strtotime("+$ws->duration_minutes min", strtotime($ws->time_begin)));
@@ -191,6 +190,7 @@ class SalonController extends Controller
         return [
             'services' => $SalonAdmin->_GetSalonServicesList((int) $p->salonId, isset($p->serviceId) ? $p->serviceId : null),
             'persons' => $SalonAdmin->getMastersList($p->salonId),
+            'current_login' => ['person_id' => Auth::user()->person_id],
         ];
     }
 

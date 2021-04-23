@@ -25,4 +25,4 @@ cp .env.example .env
 
 
 cd ./public/img
-ln -s /var/www/html/haircut_salons.server/storage/app/public/ public
+ln -s ../../storage/app/public/ public

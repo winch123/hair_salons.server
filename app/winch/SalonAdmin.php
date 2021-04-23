@@ -10,13 +10,13 @@ class SalonAdmin
         //$person = current(query("SELECT id FROM hs.persons WHERE user_id=?", [Auth::user()->id]));
 
         $s = query("SELECT s.id, sm.person_id
-            FROM hs.salons s
-            LEFT JOIN hs.salon_masters sm ON s.id=sm.salon_id AND sm.person_id=?
+            FROM salons s
+            LEFT JOIN salon_masters sm ON s.id=sm.salon_id AND sm.person_id=?
             WHERE s.external_id=? ", [Auth::user()->person_id, $salonExternalId]);
 
         if (empty($s)) {
             $ext = query("SELECT name FROM {firms} WHERE id=?", [$salonExternalId]);
-            $salonId = query("INSERT INTO hs.salons (name, external_id) VALUES (?,?)", [$ext[0]->name, $salonExternalId]);
+            $salonId = query("INSERT INTO salons (name, external_id) VALUES (?,?)", [$ext[0]->name, $salonExternalId]);
             $roles = 'ordinary,admin';
         }
         else {
@@ -27,14 +27,14 @@ class SalonAdmin
             $roles = 'requested';
         }
 
-        query("INSERT INTO hs.salon_masters (salon_id, person_id, roles) VALUES (?,?,?) ", [$salonId, Auth::user()->person_id, $roles]);
+        query("INSERT INTO salon_masters (salon_id, person_id, roles) VALUES (?,?,?) ", [$salonId, Auth::user()->person_id, $roles]);
         return true;
     }
 
     function getMySalons() {
         $salons = query("SELECT s.id, s.name, sm.roles AS myRoles
-            FROM hs.salons s
-            JOIN hs.salon_masters sm ON s.id=sm.salon_id
+            FROM salons s
+            JOIN salon_masters sm ON s.id=sm.salon_id
             WHERE sm.person_id=?", [Auth::user()->person_id]);
 
         foreach($salons as &$salon) {
@@ -45,7 +45,7 @@ class SalonAdmin
     }
 
     function loadPerson($personId) {
-        return current(query("SELECT id,name FROM hs.persons WHERE id=?", [$personId]));
+        return current(query("SELECT id,name FROM persons WHERE id=?", [$personId]));
     }
 
     function getMastersList($salonId) {

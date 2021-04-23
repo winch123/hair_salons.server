@@ -22,7 +22,7 @@ class SalonsForVisitors extends Controller
         $sql = "SELECT s.id, s.name, s.parent_service, count(ss.salon_id) count_salons
             FROM salons_services ss
             JOIN services s ON ss.service_id=s.id
-            GROUP BY s.id ";
+            GROUP BY s.id, s.name, s.parent_service ";
 
         if (isset($_REQUEST['salons'])) {
             $sql .= " WHERE ss.salon_id IN (ph0) ";
