@@ -130,7 +130,7 @@ class SalonController extends Controller
 
 			$id = DB::connection('mysql2')->table('masters_schedule')->insertGetId([
 				'shift_id' => $shiftId,
-				'service_id' => $servId,
+				'service_id' => $servId ?: null,
 				'begin_minutes' => $begin_minutes,
 				'duration_minutes' => $duration_minutes,
 				'comment' => $comment,
@@ -141,11 +141,16 @@ class SalonController extends Controller
     }
 
     function ScheduleAddService() {
+        $p = (object) $_REQUEST;
+        $this->authorize('master-of-salon', [$p->salonId, true]);
+
+        $s_type = $p->serviceId ? 'own' : 'pause';
+
         return [
-            'id' => $this->_ScheduleAddService($_REQUEST['salonId'], $_REQUEST['shiftId'], $_REQUEST['serviceId'], 'own', $_REQUEST['beginTime'], $_REQUEST['endTime'], $_REQUEST['comment']),
+            'id' => $this->_ScheduleAddService($p->salonId, $p->shiftId, $p->serviceId, $s_type, $p->beginTime, $p->endTime, $p->comment),
             'redirect' => [
                 'url' => 'schedule-get',
-                'params' => ['shiftId' => $_REQUEST['shiftId']],
+                'params' => ['shiftId' => $p->shiftId],
             ],
         ];
     }
